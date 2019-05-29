@@ -1,0 +1,10 @@
+.button_bar{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.no_data{
+    background-color: #d6d6d6;
+
+}

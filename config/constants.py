@@ -84,7 +84,7 @@ API_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
    human string is YYYY-MM-DDThh:mm:ss """
 
 # used in the dashboard
-REDUCED_API_TIME_FORMAT = "%Y-%m-%dT%H"
+REDUCED_API_TIME_FORMAT = "%Y-%m-%d"
 
 ## Chunks
 # This value is in seconds, it sets the time period that chunked files will be sliced into.

@@ -1,7 +1,8 @@
 from __future__ import print_function
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from json import dumps
+from pprint import pprint
 
 from flask import abort, Blueprint, render_template, request, Response
 
@@ -14,7 +15,7 @@ from libs.admin_authentication import authenticate_admin_study_access
 dashboard_api = Blueprint('dashboard_api', __name__)
 
 DATETIME_FORMAT_ERROR = \
-    "Dates and times provided to this endpoint must be formatted like this: 2010-11-22T4 (%s)" % REDUCED_API_TIME_FORMAT
+    "Dates and times provided to this endpoint must be formatted like this: 2010-11-22 (%s)" % REDUCED_API_TIME_FORMAT
 
 @dashboard_api.route("/dashboard/<string:study_id>", methods=["GET"])
 @authenticate_admin_study_access
@@ -39,89 +40,125 @@ def query_data_for_user_for_data_stream(study_id, patient_id, data_stream):
 @dashboard_api.route("/dashboard/<string:study_id>/patient/<string:patient_id>", methods=["GET"])
 @authenticate_admin_study_access
 def query_data_for_user(study_id, patient_id):
+
+    # general data fetching
     participant = get_participant(patient_id, study_id)
     start, end = extract_date_args_from_request()
     data_stream = extract_data_stream_args_from_request()
     chunks = dashboard_chunkregistry_query(participant.id, data_stream=data_stream)
+    participants = list(Participant.objects.filter(study=study_id).values_list("patient_id", flat=True))
 
+    # get a list of all participants not including the current one
+    participants = [p for p in participants if p != participant.patient_id]
+
+    # create a list of all the unique days in which data was recorded for this study
     if len(chunks):
         unique_times = list(set(
             (t["time_bin"]).date() for t in chunks)
         )
         unique_times.sort()
 
-        # set the start and end dates based on the values given
-        if start is None and end is None:
+        # create a list of all of the valid days in this study
+        first_day = unique_times[0]
+        last_day = unique_times[-1]
+        total_days = []
+        for day in range((last_day - first_day).days + 1):
+            total_days.append(first_day + timedelta(days=day))
+
+        # set the start and end dates based on the start value given
+        if start is None:
             start_num = 0
-            if len(unique_times) - 1 < 7:
-                end_num = len(unique_times) - 1
+            if len(total_days) < 8:
+                end_num = len(total_days) - 1
             else:
                 end_num = 6
-        elif start is None and end is not None:
-            end_num = unique_times.index(end.date())
-            if end_num < 7:
-                start_num = 0
-            else:
-                start_num = end_num - 6
-        elif start is not None and end is None:
-            start_num = unique_times.index(start.date())
-            if start_num > len(unique_times) - 8:
-                end_num = len(unique_times) - 1
+        else:
+            start_num = total_days.index(start.date())
+            if start_num > len(total_days) - 8:
+                end_num = len(total_days) - 1
             else:
                 end_num = start_num + 6
-        else:
-            start_num = unique_times.index(start.date())
-            end_num = unique_times.index(end.date())
 
-        # set the URLs of the next/past pages
-        if 0 < start_num < 7:
-            past_url = "?start=" + (unique_times[0]).strftime(REDUCED_API_TIME_FORMAT) \
-                       + "&end=" + (unique_times[start_num - 1]).strftime(REDUCED_API_TIME_FORMAT)
-        elif start_num == 0:
-            past_url = ""
-        elif end_num - start_num < 7:
-            diff = end_num-start_num + 1
-            past_url = "?start=" + (unique_times[start_num - 7]).strftime(REDUCED_API_TIME_FORMAT) + "&end=" + \
-                       (unique_times[end_num - diff]).strftime(REDUCED_API_TIME_FORMAT)
-        else:
-            past_url = "?start=" + (unique_times[start_num - 7]).strftime(REDUCED_API_TIME_FORMAT) + "&end=" + \
-                       (unique_times[end_num - 7]).strftime(REDUCED_API_TIME_FORMAT)
-        if len(unique_times) - 8 < end_num < len(unique_times) - 1:
-            next_url = "?start="+(unique_times[end_num + 1]).strftime(REDUCED_API_TIME_FORMAT)\
-                       + "&end=" + (unique_times[len(unique_times) - 1]).strftime(REDUCED_API_TIME_FORMAT)
-        elif end_num == len(unique_times) - 1:
-            next_url = ""
-        else:
-            next_url = "?start=" + \
-                       (unique_times[start_num + 7]).strftime(REDUCED_API_TIME_FORMAT) \
-                       + "&end=" + (unique_times[end_num + 7]).strftime(REDUCED_API_TIME_FORMAT)
+        # create list of either -1 or date objects for the current dates selected
+        # ALSO create a list of all dates to be displayed so that we can display the date even if it is -1
+        # (indicating that it should be greyed out)
+        display_times = []
+        all_times = []
+        for date in range(end_num - start_num + 1):
+            all_times.append(total_days[start_num + date])
+            if total_days[start_num + date] in unique_times:
+                display_times.append(total_days[start_num + date])
+            else:
+                display_times.append(-1)
 
-        unique_times = [time for time in unique_times if unique_times[start_num] <= time <= unique_times[end_num]]
+        # get the next and past urls
+        next_url, past_url = make_url(start_num, end_num, total_days)
 
+        # get the byte data for the dates that have data collected in that week
         byte_streams = {
             stream: [
-                get_bytes(chunks, stream, time) for time in unique_times
+                get_bytes(chunks, stream, time) for time in display_times
             ] for stream in ALL_DATA_STREAMS
         }
     else:  # edge case if no data has been entered
         byte_streams = {}
-        unique_times = []
+        display_times = []
         next_url = ""
         past_url = ""
+        first_day = 0
+        last_day = 0
+        all_times = []
 
     return render_template(
         'dashboard/participant_dash.html',
         participant=participant,
-        times=unique_times,
+        times=display_times,
         byte_streams=byte_streams,
         next_url=next_url,
         past_url=past_url,
+        participants=participants,
+        study_id=study_id,
+        first_day=first_day,
+        last_day=last_day,
+        all_times=all_times,
+        length=len(all_times),
     )
+
+def make_url(start_num, end_num, total_days):
+    # set the URLs of the next/past pages
+    if 0 < start_num < 7:
+        past_url = "?start=" + (total_days[0]).strftime(REDUCED_API_TIME_FORMAT)
+    elif start_num == 0:
+        past_url = ""
+    elif end_num - start_num < 7:
+        past_url = "?start=" + (total_days[start_num - 7]).strftime(REDUCED_API_TIME_FORMAT)
+    else:
+        past_url = "?start=" + (total_days[start_num - 7]).strftime(REDUCED_API_TIME_FORMAT)
+    if len(total_days) - 8 < end_num < len(total_days) - 1:
+        next_url = "?start=" + (total_days[end_num + 1]).strftime(REDUCED_API_TIME_FORMAT)
+    elif end_num == len(total_days) -1:
+        next_url = ""
+    else:
+        next_url = "?start=" + \
+                   (total_days[start_num + 7]).strftime(REDUCED_API_TIME_FORMAT)
+    return next_url, past_url
+
+
+def get_url(time, full_times):
+    start_num = full_times.index(time)
+    if start_num > len(full_times) - 8:
+        diff = (len(full_times) - 1) - start_num
+        return "?start=" + full_times[start_num].strftime(REDUCED_API_TIME_FORMAT) \
+            + "&end=" + full_times[start_num + diff].strftime(REDUCED_API_TIME_FORMAT)
+    return "?start=" + full_times[start_num].strftime(REDUCED_API_TIME_FORMAT) \
+        + "&end=" + full_times[start_num + 6].strftime(REDUCED_API_TIME_FORMAT)
 
 
 def get_bytes(chunks, stream, time):
     """ returns byte value for correct chunk based on data stream and type comparisons"""
     all_bytes = None
+    if time == -1:
+        return -1
     for chunk in chunks:
         if (chunk["time_bin"]).date() == time and chunk["data_stream"] == stream:
             if all_bytes is None:
