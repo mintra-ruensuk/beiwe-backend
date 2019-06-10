@@ -1,22 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Study Dashboard{% endblock %}
+{% block title %}Participant Dashboard{% endblock %}
 
-{#{% block head %}#}
-{#{% endblock %}#}
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="/static/css/participant_dash.css"  type="text/css"/>
+{% endblock %}
 
 {% block content %}
     {#  ################## TOP OF PAGE CONTENT ################# #}
-    <div class = "title">
+    <div class="title">
         <h1 class="h3"> {{ participant }}
-            <div style="float:right">
-                {% if participants %}
+            <div class="choose_participant">
+                {% if patient_ids %}
                     <div class="dropdown">
                         <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
                             {{ participant.patient_id }} <span class="caret"></span>
                         </button>
                         <ul class="dropdown-menu">
-                            {% for person in participants %}
-                                <li><a href="/dashboard/{{ study_id }}/patient/{{ person }}">{{ person }}</a></li>
+                            {% for patient_id in patient_ids %}
+                                <li><a href="/dashboard/{{ study_id }}/patient/{{ patient_id }}">
+                                    {{ patient_id }}</a></li>
                             {% endfor %}
                         </ul>
                     </div>
@@ -29,23 +32,29 @@
 
     {%  if times %}
         <div class="dates">
-            <p>Viewing Dates: {{ all_times[0].strftime('%m/%d/%Y') }} - {{ all_times[-1].strftime('%m/%d/%Y')}}</p>
+            <p>Date Range of Data Entries for Participant: {{ first_date_data.strftime('%m/%d/%Y') }}
+                - {{ last_date_data.strftime('%m/%d/%Y') }}
+            </p>
+            <p>Viewing Dates: {{ times[0].strftime('%m/%d/%Y') }} - {{ times[-1].strftime('%m/%d/%Y')}}</p>
         </div>
-        <div class = "button_bar">
+        <div class="button_bar">
             <div>
                 {% if past_url %}
-                    <a href="{{ past_url }}" class="btn btn-primary" >Past Week</a>
+                    <a href="{{ past_url }}" class="btn btn-primary" >Previous Page</a>
                 {% endif %}
             </div>
             <form method="get" action="#" >
                 <input type="date" name="start"
-                       value="{{ all_times[0] }}"
+                       value="{{ times[0] }}"
+                       min="{{ first_day }}" max="{{ last_day }}" >
+                <input type="date" name="end"
+                       value="{{ times[-1] }}"
                        min="{{ first_day }}" max="{{ last_day }}" >
                 <button type="submit" class="btn btn-primary" >Submit</button>
             </form>
-            <div >
+            <div>
                 {% if next_url %}
-                    <a href="{{ next_url }}" class="btn btn-primary" >Next Week</a>
+                    <a href="{{ next_url }}" class="btn btn-primary" >Next Page</a>
                 {% endif %}
             </div>
         </div>
@@ -55,30 +64,30 @@
             <thead>
                 <tr>
                     <th> Statistic </th>
-                    {% for time in range(length) %}
-                        {% if times[time] == -1 %}
-                            <th class = "no_data"> {{ all_times[time].strftime('%m/%d/%Y') }}</th>
-                        {% else %}
-                            <th> {{ all_times[time].strftime('%m/%d/%Y') }}</th>
-                        {% endif %}
+                    {% for time in range(times|length) %}
+                            <th>{{ times[time].strftime('%m/%d/%Y') }}</th>
                     {% endfor %}
                 </tr>
             </thead>
             {% for stream, byte_list in byte_streams.items() %} {# iterate over keys #}
-                <tr>
-                    <td> {{ stream }} </td> {# print name of data stream #}
-                    {% for bytes in byte_list %} {# iterate over bytes in values #}
-                        {% if bytes == -1 %}
-                            <td> </td>
-                        {% else %}
-                            <td> {{ bytes }} </td>
-                        {% endif %}
-                    {% endfor %}
-                </tr>
+                <div class="table_data">
+                    <tr>
+                        <th> <a href="/dashboard/{{ study_id }}/data/{{ stream }}">
+                                        {{ data_stream_print.get(stream) }}</a>
+                        </th>
+                        {% for bytes in byte_list %} {# iterate over bytes in values #}
+                            {% if bytes == None %}
+                                <td class="bytes">0</td>
+                            {% else %}
+                                <td class="bytes"> {{ "{:,}".format(bytes) }} </td>
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                </div>
             {% endfor %}
         </table>
     {% else %}
         <p> There is no data currently available for {{ participant }}</p>
     {% endif %}
-    <link rel="stylesheet" href="/static/css/participant_dash.css"  type="text/css"/>
+
 {% endblock %}

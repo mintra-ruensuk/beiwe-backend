@@ -6,16 +6,33 @@
 
 {% block content %}
 
-    <h1 class="h2"> {{ study_name }} Dashboard </h1>
+    <h1 class="h2"> {{ study_name }} Study Dashboard </h1>
+    <p> Choose a participant or data stream to view the Dashboard. </p>
 
     <table class="table table-striped table-bordered">
         <thead>
            <tr>
-               <th class="h3"> Participant </th>
+               <th class="h5"> Participant </th>
+               <th class="h5"> Data Stream</th>
            </tr>
         </thead>
-        {% for participant in participants %}
-            <tr><td><a href="{{ study_id }}/patient/{{participant}}">{{participant}}</a></td></tr>
+        {% for len in range(length) %}
+            <tr>
+                {%  if len >= participants|length %}
+                    <td> </td>
+                {% else %}
+                    <td>
+                        <a href="{{ study_id }}/patient/{{participants[len]}}">{{participants[len]}}</a>
+                    </td>
+                {% endif %}
+                {%  if len >= ALL_DATA_STREAMS|length %}
+                    <td> </td>
+                {% else %}
+                    <td>
+                        <a href="{{ study_id }}/data/{{ALL_DATA_STREAMS[len]}}">{{print_data.get(ALL_DATA_STREAMS[len])}}</a>
+                    </td>
+                {% endif %}
+            </tr>
         {% endfor %}
     </table>
 

@@ -4,7 +4,11 @@
     justify-content: space-between;
     margin-bottom: 10px;
 }
-.no_data{
-    background-color: #d6d6d6;
 
+.choose_participant{
+    float: right;
+}
+
+.bytes{
+    text-align: right;
 }

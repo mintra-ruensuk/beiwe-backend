@@ -137,25 +137,49 @@ data_stream_dict = {
     REACHABILITY: "reachability",
 }
 
+# dictionary for printing data streams
+data_stream_print = {
+    ACCELEROMETER: "Accelerometer",
+    ANDROID_LOG_FILE: "Android Log File",
+    BLUETOOTH: "Bluetooth",
+    CALL_LOG: "Call Log",
+    DEVICEMOTION: "Device Motion",
+    GPS: "GPS",
+    GYRO: "Gyro",
+    IDENTIFIERS: "Identifiers",
+    IMAGE_FILE: "Image Survey",
+    IOS_LOG_FILE: "iOS Log File",
+    MAGNETOMETER: "Magnetometer",
+    POWER_STATE: "Power State",
+    PROXIMITY: "Proximity",
+    REACHABILITY: "Reachability",
+    SURVEY_ANSWERS: "Survey Answers",
+    SURVEY_TIMINGS: "Survey Timings",
+    TEXTS_LOG: "Text Log",
+    VOICE_RECORDING: "Audio Recordings",
+    WIFI: "Wifi",
+}
+
 ALL_DATA_STREAMS = [ACCELEROMETER,
+                    ANDROID_LOG_FILE,
                     BLUETOOTH,
                     CALL_LOG,
+                    DEVICEMOTION,
                     GPS,
+                    GYRO,
                     IDENTIFIERS,
-                    ANDROID_LOG_FILE,
+                    IMAGE_FILE,
+                    IOS_LOG_FILE,
+                    MAGNETOMETER,
                     POWER_STATE,
+                    PROXIMITY,
+                    REACHABILITY,
                     SURVEY_ANSWERS,
                     SURVEY_TIMINGS,
                     TEXTS_LOG,
                     VOICE_RECORDING,
                     WIFI,
-                    PROXIMITY,
-                    GYRO,
-                    MAGNETOMETER,
-                    DEVICEMOTION,
-                    REACHABILITY,
-                    IOS_LOG_FILE,
-                    IMAGE_FILE]
+]
 
 SURVEY_DATA_FILES = [SURVEY_ANSWERS, SURVEY_TIMINGS]
 

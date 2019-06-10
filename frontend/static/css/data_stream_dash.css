@@ -1,0 +1,29 @@
+.button_bar_upper{
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    margin-bottom: 10px;
+}
+
+.button_bar_lower{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.left_group{
+    display: flex;
+}
+
+.right_group{
+    margin-left: auto;
+}
+
+.choose_stream{
+    float: right;
+}
+
+.bytes{
+    text-align: right;
+}
