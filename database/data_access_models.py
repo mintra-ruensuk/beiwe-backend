@@ -1,18 +1,20 @@
 import json
 import random
 import string
-
 from datetime import datetime
 
+import pytz
 from django.db import models
 from django.utils import timezone
+from django.utils.timezone import localtime
+from django_extensions.db.fields.json import JSONField
 
-from config.constants import ALL_DATA_STREAMS, CHUNKABLE_FILES, CHUNK_TIMESLICE_QUANTUM, PIPELINE_FOLDER
-from database.common_models import JSONTextField
-from database.validators import LengthValidator
-from libs.security import chunk_hash, low_memory_chunk_hash
+from config.constants import (ALL_DATA_STREAMS, CHUNK_TIMESLICE_QUANTUM, CHUNKABLE_FILES,
+    PIPELINE_FOLDER)
 from database.models import AbstractModel
 from database.study_models import Study
+from database.validators import LengthValidator
+from libs.security import chunk_hash, low_memory_chunk_hash
 
 
 class FileProcessingLockedError(Exception): pass
@@ -20,26 +22,35 @@ class UnchunkableDataTypeError(Exception): pass
 class ChunkableDataTypeError(Exception): pass
 
 
+
 class PipelineRegistry(AbstractModel):
     study = models.ForeignKey('Study', on_delete=models.PROTECT, related_name='pipeline_registries', db_index=True)
     participant = models.ForeignKey('Participant', on_delete=models.PROTECT, related_name='pipeline_registries', db_index=True)
 
-    # TODO: construct list of of canonical names for the pipeline data types
     data_type = models.CharField(max_length=32, db_index=True)
-    processed_data = JSONTextField(null=True, blank=True)
-    # TODO: why do we need this
-    # uploaded_at = models.DateTimeField(db_index=True)
+    processed_data = JSONField(null=True, blank=True)
+
+    uploaded_at = models.DateTimeField(db_index=True)
+
+    @classmethod
+    def register_pipeline_data(cls, study_id, participant_id, data, data_type):
+        cls.objects.create(
+            study_id=study_id,
+            participant_id=participant_id,
+            processed_data=data,
+            data_type=data_type,
+            uploaded_at=localtime()
+        )
 
 
 class ChunkRegistry(AbstractModel):
-
-    DATA_TYPE_CHOICES = tuple([(stream_name, stream_name) for stream_name in ALL_DATA_STREAMS])
-
     is_chunkable = models.BooleanField()
     chunk_path = models.CharField(max_length=256, db_index=True)  # , unique=True)
     chunk_hash = models.CharField(max_length=25, blank=True)
 
-    data_type = models.CharField(max_length=32, choices=DATA_TYPE_CHOICES, db_index=True)
+    # removed: data_type used to have choices of ALL_DATA_STREAMS, but this generated migrations
+    # unnecessarily, so it has been removed.  This has no side effects.
+    data_type = models.CharField(max_length=32, db_index=True)
     time_bin = models.DateTimeField(db_index=True)
 
     study = models.ForeignKey('Study', on_delete=models.PROTECT, related_name='chunk_registries', db_index=True)

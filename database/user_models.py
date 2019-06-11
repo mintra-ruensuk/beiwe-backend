@@ -1,10 +1,10 @@
 from django.db import models
-from django.db.models import Func, F
+from django.db.models import F, Func
 
 from database.models import AbstractModel
-from database.validators import url_safe_base_64_validator, id_validator, standard_base_64_validator
-from libs.security import (generate_easy_alphanumeric_string, compare_password,
-    generate_user_hash_and_salt, device_hash, generate_hash_and_salt, generate_random_string)
+from database.validators import id_validator, standard_base_64_validator, url_safe_base_64_validator
+from libs.security import (compare_password, device_hash, generate_easy_alphanumeric_string,
+    generate_hash_and_salt, generate_random_string, generate_user_hash_and_salt)
 
 
 class AbstractPasswordUser(AbstractModel):

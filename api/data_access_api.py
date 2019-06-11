@@ -427,7 +427,7 @@ def data_pipeline_upload():
         return abort(403) # access key DNE
     researcher = Researcher.objects.get(access_key_id=access_key)
     if not researcher.validate_access_credentials(access_secret):
-        return abort( 403 )  # incorrect secret key
+        return abort(403)  # incorrect secret key
     # case: invalid study
     study_id = request.values["study_id"]
 
@@ -494,7 +494,8 @@ def json_pipeline_upload():
 
     json_data = request.values["summary_output"]
     summary_type = request.values["summary_type"]
-    participant_id = 11  # TODO(Ali): need to figure out a way to get the patient_id
+    patient_id = request.values["patient_id"]
+    participant_id = Participant.objects.get(patient_id=patient_id).id
     PipelineRegistry.register_pipeline_data(study_id, participant_id, json_data, summary_type)
 
     # Debugging
