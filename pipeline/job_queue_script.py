@@ -66,12 +66,15 @@ def run(repo_uri, ami_id):
     set_default_region()
     iam_client = boto3.client('iam')
 
-    comp_env_role_arn = iam_client.create_role(
-        RoleName=comp_env_role,
-        AssumeRolePolicyDocument=assume_batch_role_policy_json,
-    )['Role']['Arn']
-
-
+    try:
+        comp_env_role_arn = iam_client.create_role(
+            RoleName=comp_env_role,
+            AssumeRolePolicyDocument=assume_batch_role_policy_json,
+        )['Role']['Arn']
+    except Exception as e:
+        if "Role with name AWSBatchServiceRole already exists." in str(e):
+            comp_env_role_arn = iam_client.get_role(RoleName=comp_env_role)['Role']['Arn']
+            
     try:
         iam_client.put_role_policy(
             RoleName=comp_env_role,
