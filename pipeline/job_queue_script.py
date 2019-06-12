@@ -74,7 +74,7 @@ def run(repo_uri, ami_id):
     except Exception as e:
         if "Role with name AWSBatchServiceRole already exists." in str(e):
             comp_env_role_arn = iam_client.get_role(RoleName=comp_env_role)['Role']['Arn']
-            
+
     try:
         iam_client.put_role_policy(
             RoleName=comp_env_role,
@@ -104,9 +104,11 @@ def run(repo_uri, ami_id):
         print('WARNING: assigning role creation failed, assuming that this means it already exists.')
 
 
-    resp = iam_client.create_instance_profile(
-        InstanceProfileName=instance_profile,
-    )
+    try:
+        resp = iam_client.create_instance_profile(InstanceProfileName=instance_profile)
+    except Exception as e:
+        if "Instance Profile ecsInstanceRole already exists." in str(e):
+            resp = iam_client.get_instance_profile(InstanceProfileName=instance_profile)
 
     instance_profile_arn = resp['InstanceProfile']['Arn']
     compute_environment_dict['instanceRole'] = instance_profile_arn
