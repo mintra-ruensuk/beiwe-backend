@@ -110,8 +110,7 @@ def run(repo_uri, ami_id):
         if "Instance Profile ecsInstanceRole already exists." in str(e):
             resp = iam_client.get_instance_profile(InstanceProfileName=instance_profile)
 
-    instance_profile_arn = resp['InstanceProfile']['Arn']
-    compute_environment_dict['instanceRole'] = instance_profile_arn
+    compute_environment_dict['instanceRole'] = resp['InstanceProfile']['Arn']
     iam_client.add_role_to_instance_profile(
         InstanceProfileName=instance_profile,
         RoleName=instance_profile,
@@ -132,12 +131,15 @@ def run(repo_uri, ami_id):
     batch_client = boto3.client('batch')
     compute_environment_dict['imageId'] = ami_id
 
-    batch_client.create_compute_environment(
-        computeEnvironmentName=comp_env_name,
-        type='MANAGED',
-        computeResources=compute_environment_dict,
-        serviceRole=comp_env_role_arn,
-    )
+    try:
+        batch_client.create_compute_environment(
+            computeEnvironmentName=comp_env_name,
+            type='MANAGED',
+            computeResources=compute_environment_dict,
+            serviceRole=comp_env_role_arn,
+        )
+    except Exception:
+        print('WARNING: creating compute environment failed, this probably means it already exists.')
 
     # The compute environment takes somewhere between 10 and 45 seconds to create. Until it
     # is created, we cannot create a job queue. So first, we wait until the compute environment
