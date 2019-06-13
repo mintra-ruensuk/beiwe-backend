@@ -3,5 +3,5 @@
   "minvCpus": 0,
   "desiredvCpus": 2,
   "maxvCpus": 256,
-  "instanceTypes": ["m4"]
+  "instanceTypes": ["m5"]
 }
