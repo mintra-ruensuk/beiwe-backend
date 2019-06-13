@@ -127,10 +127,14 @@ def run(repo_uri, ami_id):
     # Create a security group for the compute environment
     ec2_client = boto3.client('ec2')
 
-    group_id = ec2_client.create_security_group(
-        Description='Security group for AWS Batch',
-        GroupName=security_group,
-    )['GroupId']
+    try:
+        group_id = ec2_client.create_security_group(
+            Description='Security group for AWS Batch',
+            GroupName=security_group,
+        )['GroupId']
+    except Exception as e:
+        if not "InvalidGroup.Duplicate" in str(e):
+            raise
 
     compute_environment_dict['securityGroupIds'] = [group_id]
     
@@ -182,10 +186,7 @@ def run(repo_uri, ami_id):
         )
         print('Job queue created')
     except Exception:
-        print(
-                "Warning: job queue '%s' already exists.  This script may not be doing what you want..."
-                % aws_object_names['queue_name']
-        )
+        print("Warning: job queue '%s' already exists." % aws_object_names['queue_name'])
 
     # Create a batch job definition
     container_props_dict['image'] = repo_uri
@@ -193,26 +194,40 @@ def run(repo_uri, ami_id):
         {
             'name': 'access_key_ssm_name',
             'value': aws_object_names['access_key_ssm_name'],
-        },{
+        }, {
             'name': 'secret_key_ssm_name',
             'value': aws_object_names['secret_key_ssm_name'],
-        },{
+        }, {
             'name': 'region_name',
             'value': get_current_region(),
-        },{
+        }, {
             'name': 'server_url',
             'value': aws_object_names['server_url'],
         },
     ]
-    try:
-        batch_client.register_job_definition(
-            jobDefinitionName=aws_object_names['job_defn_name'],
-            type='container',
-            containerProperties=container_props_dict,
-        )
-        print('Job definition created')
-    except Exception:
-        print(
-                "Warning: job definition '%s' already exists.  This script may not be doing what you want..."
-                % aws_object_names['job_defn_name']
-        )
+
+    base_name = aws_object_names['job_defn_name']
+    job_definition_name = base_name
+    for i in range(100):
+
+        # do not give up at this point, try to create the
+        if i != 1:
+            old_name = job_definition_name
+            job_definition_name = "%s_%s" % (base_name, i)
+            print(
+                "Warning: job definition '%s' already exists.  Attempting to create a job"
+                " definition named '%s'.  You will need to change your Beiwe server settings "
+                " job_defn_name to match this name."
+                % (old_name, job_definition_name)
+            )
+
+        try:
+            batch_client.register_job_definition(
+                jobDefinitionName=job_definition_name,
+                type='container',
+                containerProperties=container_props_dict,
+            )
+            print('Job definition "%s" created.' % job_definition_name)
+            break
+        except Exception:
+            print('Job definition "%s" NOT created.' % job_definition_name)
