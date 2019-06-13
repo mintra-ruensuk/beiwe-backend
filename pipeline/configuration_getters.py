@@ -88,7 +88,7 @@ def _validate_and_get_configs(config_list, config_file_path):
     # prompt for the url or provide it in an environment variable or in the contents of the config file.
     global cached_domain
     if cached_domain is None:
-        if "server_url" in config_data:
+        if "server_url" in config_data and config_data["server_url"]:
             cached_domain = config_data["server_url"]
         else:
             prompt = "Provide the domain that your Beiwe deployment will uses. " \
