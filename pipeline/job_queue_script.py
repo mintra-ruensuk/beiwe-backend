@@ -2,6 +2,7 @@
 A script for creating a setup to run AWS Batch jobs: a compute environment, a job queue and a
 job definition to use as a template for actual jobs.
 """
+from __future__ import print_function
 
 import json
 import os.path
@@ -50,13 +51,13 @@ def run(repo_uri, ami_id):
         ec2_client = boto3.client('ec2')
         subnets = ec2_client.describe_subnets()['Subnets']
         if len(set([y['VpcId'] for y in subnets])) != 1:
-            print "\n"
-            print "It looks like you have multiple VPCs in this region, which means this script"
-            print "cannot automatically determine the correct subnets on which to place"
-            print "the data pipeline compute servers."
-            print "You can resolve this by adding a line with the key 'subnets' like the following"
-            print "to the compute-environment.json file in the configs folder."
-            print """  "subnets": ["subnet-abc123"]"""
+            print("\n")
+            print("It looks like you have multiple VPCs in this region, which means this script")
+            print("cannot automatically determine the correct subnets on which to place")
+            print("the data pipeline compute servers.")
+            print("You can resolve this by adding a line with the key 'subnets' like the following")
+            print("to the compute-environment.json file in the configs folder.")
+            print("""  "subnets": ["subnet-abc123"]""")
             exit(1)
         else:
             # add a 1 item list containing a valid subnet
@@ -74,6 +75,8 @@ def run(repo_uri, ami_id):
     except Exception as e:
         if "Role with name AWSBatchServiceRole already exists." in str(e):
             comp_env_role_arn = iam_client.get_role(RoleName=comp_env_role)['Role']['Arn']
+        else:
+            raise
 
     try:
         iam_client.put_role_policy(
