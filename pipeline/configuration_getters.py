@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import json
 import os
 from os.path import join as path_join, abspath
@@ -36,9 +38,9 @@ generic_config_components = [
     "instance_profile",
     "comp_env_name",
     "comp_env_role",
-    "queue_name", # used in creating a job
-    "job_defn_name", # used in creating a job
-    "job_name", # used in creating a job
+    "queue_name",  # used in creating a job
+    "job_defn_name",  # used in creating a job
+    "job_name",  # used in creating a job
     "access_key_ssm_name",
     "secret_key_ssm_name",
     "security_group",
@@ -83,12 +85,16 @@ def _validate_and_get_configs(config_list, config_file_path):
         if setting in os.environ:
             config_data[setting] = os.environ[setting]
 
+    # prompt for the url or provide it in an environment variable or in the contents of the config file.
     global cached_domain
     if cached_domain is None:
-        prompt = "Provide the domain that your Beiwe deployment will uses. " \
-                 "Example: 'studies.beiwe-studies.net' (do not include a protocol)" \
-                 "\n\n$ "
-        cached_domain = raw_input(prompt)
+        if "server_url" in config_data:
+            cached_domain = config_data["server_url"]
+        else:
+            prompt = "Provide the domain that your Beiwe deployment will uses. " \
+                     "Example: 'studies.beiwe-studies.net' (do not include a protocol)" \
+                     "\n\n$ "
+            cached_domain = raw_input(prompt)
 
     config_data["server_url"] = cached_domain
     config_data["region_name"] = get_current_region()
