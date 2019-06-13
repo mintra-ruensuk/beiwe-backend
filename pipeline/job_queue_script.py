@@ -111,11 +111,15 @@ def run(repo_uri, ami_id):
             resp = iam_client.get_instance_profile(InstanceProfileName=instance_profile)
 
     compute_environment_dict['instanceRole'] = resp['InstanceProfile']['Arn']
-    iam_client.add_role_to_instance_profile(
-        InstanceProfileName=instance_profile,
-        RoleName=instance_profile,
-    )
-    print('Instance profile created')
+    try:
+        iam_client.add_role_to_instance_profile(
+            InstanceProfileName=instance_profile,
+            RoleName=instance_profile,
+        )
+        print('Instance profile created')
+    except Exception as e:
+        if not "Cannot exceed quota for InstanceSessionsPerInstanceProfile" in str(e):
+            raise
     
     # Create a security group for the compute environment
     ec2_client = boto3.client('ec2')
@@ -164,38 +168,48 @@ def run(repo_uri, ami_id):
             # continue with job queue creation. Raise an error and quit the script.
             raise RuntimeError('Compute Environment is Invalid')
     print('Compute environment created')
-    
+
+
     # Create a batch job queue
-    batch_client.create_job_queue(
-        jobQueueName=aws_object_names['queue_name'],
-        priority=1,
-        computeEnvironmentOrder=[{'order': 0, 'computeEnvironment': comp_env_name}],
-    )
-    print('Job queue created')
-    
+    try:
+        batch_client.create_job_queue(
+            jobQueueName=aws_object_names['queue_name'],
+            priority=1,
+            computeEnvironmentOrder=[{'order': 0, 'computeEnvironment': comp_env_name}],
+        )
+        print('Job queue created')
+    except Exception:
+        print(
+                "Warning: job queue '%s' already exists.  This script may not be doing what you want..."
+                % aws_object_names['queue_name']
+        )
+
     # Create a batch job definition
     container_props_dict['image'] = repo_uri
     container_props_dict['environment'] = [
         {
             'name': 'access_key_ssm_name',
             'value': aws_object_names['access_key_ssm_name'],
-        },
-        {
+        },{
             'name': 'secret_key_ssm_name',
             'value': aws_object_names['secret_key_ssm_name'],
-        },
-        {
+        },{
             'name': 'region_name',
             'value': get_current_region(),
-        },
-        {
+        },{
             'name': 'server_url',
             'value': aws_object_names['server_url'],
         },
     ]
-    batch_client.register_job_definition(
-        jobDefinitionName=aws_object_names['job_defn_name'],
-        type='container',
-        containerProperties=container_props_dict,
-    )
-    print('Job definition created')
+    try:
+        batch_client.register_job_definition(
+            jobDefinitionName=aws_object_names['job_defn_name'],
+            type='container',
+            containerProperties=container_props_dict,
+        )
+        print('Job definition created')
+    except Exception:
+        print(
+                "Warning: job definition '%s' already exists.  This script may not be doing what you want..."
+                % aws_object_names['job_defn_name']
+        )
