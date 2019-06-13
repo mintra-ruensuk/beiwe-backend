@@ -128,19 +128,24 @@ def run(repo_uri, ami_id):
     ec2_client = boto3.client('ec2')
 
     try:
-        group_id = ec2_client.create_security_group(
-            Description='Security group for AWS Batch',
-            GroupName=security_group,
-        )['GroupId']
-    except Exception as e:
-        if not "InvalidGroup.Duplicate" in str(e):
-            raise
+        group_id = ec2_client.describe_security_groups(GroupNames=[security_group])['SecurityGroups'][0]['GroupId']
+    except Exception:
+        try:
+            group_id = ec2_client.create_security_group(
+                Description='Security group for AWS Batch',
+                GroupName=security_group,
+            )['GroupId']
+        except Exception as e:
+            if "InvalidGroup.Duplicate" not in str(e):
+                raise
 
+    # the raise condition above is sufficient for this potential unbound local error
     compute_environment_dict['securityGroupIds'] = [group_id]
     
     # Create the batch compute environment
     batch_client = boto3.client('batch')
     compute_environment_dict['imageId'] = ami_id
+
 
     try:
         batch_client.create_compute_environment(
