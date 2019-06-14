@@ -6,12 +6,13 @@ from __future__ import print_function
 
 import json
 import os.path
+from pprint import pprint
 from time import sleep
 
 import boto3
 
-from script_helpers import set_default_region
 from configuration_getters import get_aws_object_names, get_configs_folder, get_current_region
+from script_helpers import set_default_region
 
 
 def run(repo_uri, ami_id):
@@ -188,113 +189,118 @@ def run(repo_uri, ami_id):
 def create_compute_environment(batch_client, compute_environment_dict, original_comp_env_name, comp_env_role_arn):
     """ Determine if compute environment exists with this name, create a similarly named one if it does
      or the original name if it does not. """
-    current_comp_env_name = original_comp_env_name
 
     # Get a list of the existing compute environments.
     # The compute environment defines the ami that is used, which means that if it needs to exist we
     # need to try and handle that case because it is the most obnoxious and slow thing to delete.
     # Todo: cannot determine if this will paginate correctly
-    extant_compute_environments = batch_client.describe_compute_environments(
-        computeEnvironments=[original_comp_env_name]
-    )['computeEnvironments']
-    # this could be an unnecessary cleanup pass, but never trust boto3 to work correctly or
-    # provide you with useful data
     extant_compute_environments = [
         compute_environment['computeEnvironmentName'] for compute_environment in
-        extant_compute_environments if "computeEnvironmentName" in compute_environment
+        batch_client.describe_compute_environments()['computeEnvironments']
+        if "computeEnvironmentName" in compute_environment
     ]
 
-    for i in range(2, 100):
-        # if the current name already exists (first iteration will be of the original name) change
-        # the name and return to top of loop and start again
-        if current_comp_env_name in extant_compute_environments:
-            print("Batch Compute Environment '%s' already exists..." % current_comp_env_name)
-            current_comp_env_name = "%s_%s" % (original_comp_env_name, i)
-            continue
+    final_comp_env_name = find_available_name(
+        original_comp_env_name, extant_compute_environments, "Batch Compute Environment"
+    )
 
-        print("Creating a new Batch Compute Environment named '%s'." % current_comp_env_name)
+    print("Creating a new Batch Compute Environment named '%s'..." % final_comp_env_name)
+    batch_client.create_compute_environment(
+        computeEnvironmentName=final_comp_env_name,
+        type='MANAGED',
+        computeResources=compute_environment_dict,
+        serviceRole=comp_env_role_arn,
+    )
+    print("Created new Batch Compute Environment named '%s'." % final_comp_env_name)
 
-        batch_client.create_compute_environment(
-            computeEnvironmentName=current_comp_env_name,
-            type='MANAGED',
-            computeResources=compute_environment_dict,
-            serviceRole=comp_env_role_arn,
-        )
+    # The compute environment takes somewhere between 10 and 45 seconds to create. Until it
+    # is created, we cannot create a job queue. So first, we wait until the compute environment
+    # has finished being created.
+    print('Waiting for compute environment...')
+    while True:
+        # Ping the AWS server for a description of the compute environment
+        resp = batch_client.describe_compute_environments(computeEnvironments=[final_comp_env_name])
+        status = resp['computeEnvironments'][0]['status']
 
-        # The compute environment takes somewhere between 10 and 45 seconds to create. Until it
-        # is created, we cannot create a job queue. So first, we wait until the compute environment
-        # has finished being created.
-        print('Waiting for compute environment...')
-        while True:
-            # Ping the AWS server for a description of the compute environment
-            resp = batch_client.describe_compute_environments(computeEnvironments=[current_comp_env_name])
-            status = resp['computeEnvironments'][0]['status']
+        if status == 'VALID':
+            # If the compute environment is valid, we can proceed to creating the job queue
+            break
+        elif status == 'CREATING' or status == 'UPDATING':
+            # If the compute environment is still being created (or has been created and is
+            # now being modified), we wait one second and then ping the server again.
+            sleep(1)
+        else:
+            # If the compute environment is invalid (or deleting or deleted), we cannot
+            # continue with job queue creation. Raise an error and quit the script.
+            raise RuntimeError('Compute Environment is Invalid')
 
-            if status == 'VALID':
-                # If the compute environment is valid, we can proceed to creating the job queue
-                break
-            elif status == 'CREATING' or status == 'UPDATING':
-                # If the compute environment is still being created (or has been created and is
-                # now being modified), we wait one second and then ping the server again.
-                sleep(1)
-            else:
-                # If the compute environment is invalid (or deleting or deleted), we cannot
-                # continue with job queue creation. Raise an error and quit the script.
-                raise RuntimeError('Compute Environment is Invalid')
-
-        print('Compute environment created')
-        return current_comp_env_name
-    raise Exception("Could not find a free name to create a compute environment with.")
+    print('Compute environment created')
+    return final_comp_env_name
 
 
-def create_batch_job_queue(batch_client, orig_jobq_name, final_comp_env_name):
+def create_batch_job_queue(batch_client, orig_jobq_name, comp_env_name):
     # determine if job queue with the given name exists, attempt to create similarly named job queues
-    current_jobq_name = orig_jobq_name
-
     # Todo: cannot determine if this will paginate correctly
-    extant_job_definitions = [
+    extant_job_queues = [
         job_dfn['jobDefinitionName'] for job_dfn in
         batch_client.describe_job_definitions()['jobDefinitions']
         if "jobDefinitionName" in job_dfn
     ]
 
-    # iterate until a job queue name is found that doesn't already exist, then create it.
-    for i in range(2, 100):
-        if current_jobq_name in extant_job_definitions:
-            current_jobq_name = "%s_%s" % (orig_jobq_name, i)
-            continue
+    final_jobq_name = find_available_name(
+        orig_jobq_name, extant_job_queues, "Batch Compute Environment"
+    )
 
-        batch_client.create_job_queue(
-            jobQueueName=current_jobq_name,
-            priority=1,
-            computeEnvironmentOrder=[{'order': 0, 'computeEnvironment': final_comp_env_name}],
-        )
-        print('Job queue named "%s" created' % current_jobq_name)
-        return current_jobq_name
-    raise Exception("Could not find a free name to create a job queue with.")
+    print('Creating Job Queue named "%s"...' % final_jobq_name)
+    batch_client.create_job_queue(
+        jobQueueName=final_jobq_name,
+        priority=1,
+        computeEnvironmentOrder=[{'order': 0, 'computeEnvironment': comp_env_name}],
+    )
+    print('Created Job Queue named "%s"...' % final_jobq_name)
+    return final_jobq_name
 
 
 def create_job_definition(batch_client, original_job_definition_name, container_props_dict):
-    current_job_definition = original_job_definition_name
-
     # Todo: cannot determine if this will paginate correctly
-    extant_job_queues = [
+    extant_job_definitions = [
         jobq['jobQueueName'] for jobq in batch_client.describe_job_queues()['jobQueues']
         if "jobQueueName" in jobq
     ]
 
-    # iterate until a job definition name is found that doesn't already exist, then create it.
+    final_job_definition = find_available_name(
+        original_job_definition_name, extant_job_definitions, "Batch Job Definition"
+    )
+
+    print('Creating Job Definition "%s"...' % final_job_definition)
+    batch_client.register_job_definition(
+        jobDefinitionName=final_job_definition,
+        type='container',
+        containerProperties=container_props_dict,
+    )
+    print('Created Job Definition "%s".' % final_job_definition)
+    return final_job_definition
+
+
+def find_available_name(base_name, extant_names, printable_identifier):
+    found_a_name = False
+    current_name = base_name
     for i in range(2, 100):
-        if current_job_definition in extant_job_queues:
-            current_job_definition = "%s_%s" % (original_job_definition_name, i)
+        # if the current name already exists (first iteration will be of the original name) change
+        # the name and return to top of loop and start again.
+        if current_name in extant_names:
+            print("%s '%s' already exists..." % (printable_identifier, current_name))
+            current_name = "%s_%s" % (base_name, i)
             continue
+        else:
+            found_a_name = True
+            break
 
-        batch_client.register_job_definition(
-            jobDefinitionName=current_job_definition,
-            type='container',
-            containerProperties=container_props_dict,
-        )
-        print('Job definition "%s" created.' % current_job_definition)
-        return current_job_definition
-    raise Exception("Could not find a free name to create a job definition with.")
+    if not found_a_name:
+        print("base name:", base_name)
+        print("for: ", printable_identifier)
+        print("extant names:")
+        pprint(extant_names)
+        raise Exception("could not find a %s that was not in use.")
 
+    return current_name
