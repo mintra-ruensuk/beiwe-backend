@@ -195,7 +195,7 @@ def create_compute_environment(batch_client, compute_environment_dict, original_
     # need to try and handle that case because it is the most obnoxious and slow thing to delete.
     # Todo: cannot determine if this will paginate correctly
     extant_compute_environments = batch_client.describe_compute_environments(
-        computeEnvironments=["data-pipeline-envjeff"]
+        computeEnvironments=[original_comp_env_name]
     )['computeEnvironments']
     # this could be an unnecessary cleanup pass, but never trust boto3 to work correctly or
     # provide you with useful data
