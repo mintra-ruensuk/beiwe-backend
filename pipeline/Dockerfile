@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system requirements
 RUN ["apt", "update"]
-RUN ["apt", "install", "-y", "gnupg2", "python3-pip", "software-properties-common"]
+RUN ["apt", "install", "-y", "gnupg2", "python3-pip", "software-properties-common", "git"]
 
 # Ubuntu 18.04 repository doesn't include R(3.5.2). To fix this we need to add
 # an external repository to install R from. First, we need to add GPG key:
