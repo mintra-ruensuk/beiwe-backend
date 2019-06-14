@@ -216,7 +216,7 @@ def create_compute_environment(batch_client, compute_environment_dict, original_
     # The compute environment takes somewhere between 10 and 45 seconds to create. Until it
     # is created, we cannot create a job queue. So first, we wait until the compute environment
     # has finished being created.
-    print('Waiting for compute environment...')
+    print('Waiting for compute environment to become available...')
     while True:
         # Ping the AWS server for a description of the compute environment
         resp = batch_client.describe_compute_environments(computeEnvironments=[final_comp_env_name])
@@ -234,7 +234,7 @@ def create_compute_environment(batch_client, compute_environment_dict, original_
             # continue with job queue creation. Raise an error and quit the script.
             raise RuntimeError('Compute Environment is Invalid')
 
-    print('Compute environment created')
+    print('Compute environment available.')
     return final_comp_env_name
 
 
@@ -242,9 +242,8 @@ def create_batch_job_queue(batch_client, orig_jobq_name, comp_env_name):
     # determine if job queue with the given name exists, attempt to create similarly named job queues
     # Todo: cannot determine if this will paginate correctly
     extant_job_queues = [
-        job_dfn['jobDefinitionName'] for job_dfn in
-        batch_client.describe_job_definitions()['jobDefinitions']
-        if "jobDefinitionName" in job_dfn
+        jobq['jobQueueName'] for jobq in batch_client.describe_job_queues()['jobQueues']
+        if "jobQueueName" in jobq
     ]
 
     final_jobq_name = find_available_name(
@@ -264,8 +263,9 @@ def create_batch_job_queue(batch_client, orig_jobq_name, comp_env_name):
 def create_job_definition(batch_client, original_job_definition_name, container_props_dict):
     # Todo: cannot determine if this will paginate correctly
     extant_job_definitions = [
-        jobq['jobQueueName'] for jobq in batch_client.describe_job_queues()['jobQueues']
-        if "jobQueueName" in jobq
+        job_dfn['jobDefinitionName'] for job_dfn in
+        batch_client.describe_job_definitions()['jobDefinitions']
+        if "jobDefinitionName" in job_dfn
     ]
 
     final_job_definition = find_available_name(
