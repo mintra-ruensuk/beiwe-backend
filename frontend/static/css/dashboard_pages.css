@@ -55,6 +55,7 @@
 
 .edit_settings{
     margin-right: 10px;
+    height: 40px;
 }
 
 .radio-buttons{
@@ -76,10 +77,15 @@
     background: linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(67, 170, 54, .35) 35%, rgba(67, 170, 54, 1) 100%);
 }
 
+.filter_flag_item{
+    margin-bottom: 5px;
+}
+
 .flag_toolbar{
     display: flex;
     flex-direction: row;
     justify-content: left;
+    flex-wrap: wrap;
 }
 
 .save_settings{

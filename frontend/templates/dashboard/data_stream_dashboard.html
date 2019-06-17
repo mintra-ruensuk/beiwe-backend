@@ -4,7 +4,7 @@
 {% block head %}
   {{ super() }}
   <link rel="stylesheet" href="/static/css/dashboard_pages.css"  type="text/css"/>
-  <script src="/static/javascript/dashboard_coloration.js"></script>
+  <script src="/static/javascript/dashboard_features.js"></script>
   <script type="text/javascript">
     window.color_high_range = {{ 0 if color_high_range is none else color_high_range }};
     window.color_low_range = {{ 0 if color_low_range is none else color_low_range}};
@@ -57,13 +57,12 @@
               <input type="button" ng-click="removeColor()" value="x" class="btn btn-primary">
             </div>
 
-            <div class="btn-group" role="group" ng-repeat="flag in all_flags_list">
+            <div class="btn-group filter_flag_item" role="group" ng-repeat="flag in all_flags_list">
               <button type="button" class="btn filter_bar flag_filter">
                 Flag Values: {% raw %}{{ flag[0] }} {{ flag[1] }}{% endraw %}
               </button>
               <input type="button" ng-click="removeFlag(flag)" value="x" class="btn btn-primary">
             </div>
-
           </div>
         </div>
         <div id="collapseOne" class="panel-collapse collapse" role="tabpanel">
