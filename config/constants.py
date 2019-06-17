@@ -114,31 +114,9 @@ MAGNETOMETER = "magnetometer"
 DEVICEMOTION = "devicemotion"
 REACHABILITY = "reachability"
 
-# dictionary for the data streams so that we can pass it as one object
-data_stream_dict = {
-    ACCELEROMETER: "accelerometer",
-    BLUETOOTH: "bluetooth",
-    CALL_LOG: "calls",
-    GPS: "gps",
-    IDENTIFIERS: "identifiers",
-    ANDROID_LOG_FILE: "app_log",
-    IOS_LOG_FILE: "ios_log",
-    POWER_STATE: "power_state",
-    SURVEY_ANSWERS: "survey_answers",
-    SURVEY_TIMINGS: "survey_timings",
-    TEXTS_LOG: "texts",
-    VOICE_RECORDING: "audio_recordings",
-    IMAGE_FILE: "image_survey",
-    WIFI: "wifi",
-    PROXIMITY: "proximity",
-    GYRO: "gyro",
-    MAGNETOMETER: "magnetometer",
-    DEVICEMOTION: "devicemotion",
-    REACHABILITY: "reachability",
-}
 
 # dictionary for printing data streams
-data_stream_print = {
+data_stream_dict = {
     ACCELEROMETER: "Accelerometer",
     ANDROID_LOG_FILE: "Android Log File",
     BLUETOOTH: "Bluetooth",
@@ -179,7 +157,7 @@ ALL_DATA_STREAMS = [ACCELEROMETER,
                     TEXTS_LOG,
                     VOICE_RECORDING,
                     WIFI,
-]
+                    ]
 
 SURVEY_DATA_FILES = [SURVEY_ANSWERS, SURVEY_TIMINGS]
 

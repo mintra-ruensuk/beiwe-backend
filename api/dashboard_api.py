@@ -1,13 +1,13 @@
 from __future__ import print_function
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from json import dumps
 
-from flask import abort, Blueprint, render_template, request, Response
+from flask import abort, Blueprint, render_template, request
+import ast
 
-from config.constants import ALL_DATA_STREAMS, REDUCED_API_TIME_FORMAT, data_stream_print
+from config.constants import ALL_DATA_STREAMS, REDUCED_API_TIME_FORMAT, data_stream_dict
 from database.data_access_models import ChunkRegistry
-from database.study_models import Study
+from database.study_models import Study, DashboardColorSetting, DashboardGradient, DashboardInflection
 from database.user_models import Participant
 from libs.admin_authentication import authenticate_admin_study_access
 
@@ -27,70 +27,159 @@ def dashboard_page(study_id=None):
         study_name=Study.objects.filter(pk=study_id).values_list("name", flat=True).get(),
         participants=participants,
         study_id=study_id,
-        data_stream_print=data_stream_print,
-        ALL_DATA_STREAMS=ALL_DATA_STREAMS,
-        length=max(len(participants), len(ALL_DATA_STREAMS)),
-        print_data=data_stream_print,
+        data_stream_dict=data_stream_dict,
+        print_data=data_stream_dict,
     )
 
 
-@dashboard_api.route("/dashboard/<string:study_id>/data/<string:data_stream>", methods=["GET", "POST"])
+@dashboard_api.route("/dashboard/<string:study_id>/data_stream/<string:data_stream>", methods=["GET", "POST"])
 @authenticate_admin_study_access
-def query_data_for_user_for_data_stream(study_id, data_stream):
-    """ parses information for the data stream dashboard view"""
-    patient_ids = list(Participant.objects.filter(study=study_id).values_list("patient_id", flat=True))
-    patient_ids.sort()
-    participant_objects = [get_participant(patient_id, study_id) for patient_id in patient_ids]
+def get_data_for_dashboard_datastream_display(study_id, data_stream):
+    """ parses information for the data stream dashboard view GET and POST requests"""
+    study = get_study_or_404(study_id)
+
+    # -------------------------- for a POST request --------------------------------------
+    if request.method == "POST":
+        # get all of the variables
+        all_flags_list = request.form.get("all_flags_list", [])
+        color_high_range = request.form.get("color_high_range", 0)
+        color_low_range = request.form.get("color_low_range", 0)
+
+        # convert parameters from unicode to correct types
+        all_flags_list = ast.literal_eval(all_flags_list)
+        color_high_range = ast.literal_eval(color_high_range)
+        color_low_range = ast.literal_eval(color_low_range)
+
+        # try to get a DashboardColorSetting object and check if it exists
+        if DashboardColorSetting.objects.filter(data_type=data_stream, study=study).exists():
+            # in this case, a default settings model already exists
+            # now we delete the inflections associated with it
+            settings = DashboardColorSetting.objects.get(data_type=data_stream, study=study)
+            settings.inflections.all().delete()
+
+            # create new gradient
+            gradient_variable, _ = DashboardGradient.objects.get_or_create(dashboard_color_setting=settings)
+            gradient_variable.color_range_max = color_high_range
+            gradient_variable.color_range_min = color_low_range
+            gradient_variable.save()
+
+            # create new inflections
+            for flag in all_flags_list:
+                inflection_var = DashboardInflection.objects.create(dashboard_color_setting=settings, operator=flag[0])
+                inflection_var.operator = flag[0]
+                inflection_var.inflection_point = flag[1]
+                inflection_var.save()
+            settings.save()
+        else:
+            # this is the case if a default settings does not yet exist
+            # create a new dashboard color setting in memory
+            settings = DashboardColorSetting.objects.create(data_type=data_stream, study=study)
+
+            # create new gradient
+            gradient_variable = DashboardGradient.objects.create(dashboard_color_setting=settings)
+            gradient_variable.color_range_max = color_high_range
+            gradient_variable.color_range_min = color_low_range
+
+            # create new inflections
+            for flag in all_flags_list:
+                inflection_var = DashboardInflection.objects.create(dashboard_color_setting=settings, operator=flag[0])
+                inflection_var.operator = flag[0]
+                inflection_var.inflection_point = flag[1]
+
+            # save the dashboard color setting to the backend (currently is just in memory)
+            settings.save()
+
+    # ------------------ below is for a GET request - POST requests will ALSO run this code! ------------------------
+    participant_objects = Participant.objects.filter(study=study_id).order_by("patient_id")
+
+    default_filters = ""
+    if DashboardColorSetting.objects.filter(data_type=data_stream, study=study).exists():
+        settings = DashboardColorSetting.objects.get(data_type=data_stream, study=study)
+        default_filters = DashboardColorSetting.get_dashboard_color_settings(settings)
+
     start, end = extract_date_args_from_request()
-    minimum, maximum = extract_range_args_from_request()
+    color_low_range, color_high_range, show_color = extract_range_args_from_request()
+    all_flags_list = extract_flag_args_from_request()
     stream_data = OrderedDict((participant.patient_id,
                                dashboard_chunkregistry_query(participant.id, data_stream=data_stream))
                               for participant in participant_objects
                               )
 
+    # test if there are default settings saved,
+    # and if there are, test if the default filters should be used or if the user has overridden them
+    if default_filters != "":
+        gradient_info = default_filters["gradient"]
+        inflection_info = default_filters["inflections"]
+        if all_flags_list == [] and color_high_range is None and color_low_range is None:
+            # since none of the filters are set, parse default filters to pass in the default settings
+            # set the values for gradient filter
+            color_low_range = gradient_info["color_range_min"]
+            color_high_range = gradient_info["color_range_max"]
+            show_color = "true"
+
+            # set the values for the flag/inflection filter*s*
+            # the html is expecting a list of lists for the flags [[operator, value], ... ]
+            all_flags_list = []
+            for flag_info in inflection_info:
+                single_flag = [flag_info["operator"].encode("ascii"), flag_info["inflection_point"]]
+                all_flags_list.append(single_flag)
+
+    # change the url params from jinja t/f to python understood T/F
+    if show_color == "true":
+        show_color = True
+    elif show_color == "false":
+        show_color = False
+
     # general data fetching
     first_day, last_day = dashboard_chunkregistry_date_query(study_id)
+    unique_dates = []
+    next_url = ""
+    past_url = ""
+    byte_streams = {}
+    data_exists = None
     if first_day is not None:
         unique_dates, _, _ = get_unique_dates(start, end, first_day, last_day)
         next_url, past_url = create_next_past_urls(first_day, last_day, start=start, end=end)
 
         # get the byte streams per date for each patient for a specific data stream for those dates
         byte_streams = OrderedDict(
-            (patient_id, [
-                get_bytes_participant_match(stream_data[patient_id], date) for date in unique_dates
-            ]) for patient_id in patient_ids
+            (participant.patient_id, [
+                get_bytes_participant_match(stream_data[participant.patient_id], date) for date in unique_dates
+            ]) for participant in participant_objects
         )
         # check if there is data to display
-        check_if_empty = [data for patient in byte_streams.keys() for data in byte_streams[patient] if data is not None]
+        data_exists = len([data for patient in byte_streams.keys() for data in byte_streams[patient] if data is not None]) > 0
 
-    if first_day is None or (len(check_if_empty) == 0 and past_url == ""):
+    if first_day is None or (not data_exists and past_url == ""):
         unique_dates = []
         next_url = ""
         past_url = ""
         byte_streams = {}
 
+    print(unique_dates)
+
     return render_template(
-        'dashboard/data_stream_dash.html',
-        study_name=Study.objects.filter(pk=study_id).values_list("name", flat=True).get(),
-        data_stream=data_stream_print.get(data_stream),
+        'dashboard/data_stream_dashboard.html',
+        study_name=study.name,
+        data_stream=data_stream_dict.get(data_stream),
         times=unique_dates,
         byte_streams=byte_streams,
         base_next_url=next_url,
         base_past_url=past_url,
-        patient_ids=patient_ids,
         study_id=study_id,
-        data_stream_print=data_stream_print,
-        ALL_DATA_STREAMS=ALL_DATA_STREAMS,
-        max=maximum,
-        min=minimum,
+        data_stream_dict=data_stream_dict,
+        color_low_range=color_low_range,
+        color_high_range=color_high_range,
         first_day=first_day,
         last_day=last_day,
+        show_color=show_color,
+        all_flags_list=all_flags_list,
     )
 
 
 @dashboard_api.route("/dashboard/<string:study_id>/patient/<string:patient_id>", methods=["GET"])
 @authenticate_admin_study_access
-def query_data_for_user(study_id, patient_id):
+def get_data_for_dashboard_patient_display(study_id, patient_id):
     """ parses data to be displayed for the singular participant dashboard view """
     participant = get_participant(patient_id, study_id)
     start, end = extract_date_args_from_request()
@@ -125,7 +214,7 @@ def query_data_for_user(study_id, patient_id):
         last_date_data_entry = ""
 
     return render_template(
-        'dashboard/participant_dash.html',
+        'dashboard/participant_dashboard.html',
         participant=participant,
         times=unique_dates,
         byte_streams=byte_streams,
@@ -137,9 +226,15 @@ def query_data_for_user(study_id, patient_id):
         last_day=last_day,
         first_date_data=first_date_data_entry,
         last_date_data=last_date_data_entry,
-        data_stream_print=data_stream_print,
-        ALL_DATA_STREAMS=ALL_DATA_STREAMS
+        data_stream_dict=data_stream_dict,
     )
+
+
+def get_study_or_404(study_id):
+    try:
+        return Study.objects.get(pk=study_id)
+    except Study.DoesNotExist:
+        return abort(404)
 
 
 def get_unique_dates(start, end, first_day, last_day, chunks=None):
@@ -300,12 +395,28 @@ def extract_date_args_from_request():
 
     return start, end
 
-def extract_range_args_from_request():
-    """ Gets minimum and maximum arguments from GET/POST params, throws ?? formatting errors. """
-    minimum = request.values.get("minimum", None)
-    maximum = request.values.get("maximum", None)
 
-    return minimum, maximum
+def extract_range_args_from_request():
+    """ Gets minimum and maximum arguments from GET/POST params """
+    color_low_range = request.values.get("color_low", None)
+    color_high_range = request.values.get("color_high", None)
+    show_color = request.values.get("show_color", True)
+
+    return color_low_range, color_high_range, show_color
+
+
+def extract_flag_args_from_request():
+    """ Gets minimum and maximum arguments from GET/POST params, throws ?? formatting errors. """
+    all_flags_string = request.values.get("flags", "")
+    all_flags_list = []
+    # parse to create a dict of flags
+    flags_seperated = all_flags_string.split('*')
+    for flag in flags_seperated:
+        if flag != "":
+            flag_apart = flag.split(',')
+            string = flag_apart[0].encode("ascii")
+            all_flags_list.append([string, int(flag_apart[1])])
+    return all_flags_list
 
 
 def extract_data_stream_args_from_request():

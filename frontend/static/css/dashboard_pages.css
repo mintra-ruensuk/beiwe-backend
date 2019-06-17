@@ -1,0 +1,111 @@
+/* used by data stream dashboard html page*/
+
+/*.button_bar_upper{*/
+/*    display: flex;*/
+/*    flex-direction: row;*/
+/*    justify-content: flex-start;*/
+/*    margin-bottom: 10px;*/
+/*}*/
+
+.date_bar{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    margin-top: 10px;
+}
+
+.color_range_min{
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.color_range_max{
+    margin-bottom: 5px;
+}
+
+.choose_stream{
+    float: right;
+}
+
+.filters{
+    display: flex;
+    flex-direction: row;
+    justify-content: left;
+}
+
+.well{
+    margin-right: 10px;
+}
+
+.invalid_input{
+    color: red;
+    font-size: 12px;
+}
+
+.panel-group{
+    margin-top: 20px;
+}
+
+.panel-heading{
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: space-between;
+}
+
+.edit_settings{
+    margin-right: 10px;
+}
+
+.radio-buttons{
+    font-weight: normal;
+}
+
+.filter_bar{
+    font-size: 14px;
+    color: black;
+    background-color: white;
+}
+
+.add_flag{
+    margin-top: 10px;
+}
+
+.gradient{
+    background: rgba(67, 170, 54, 1);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(67, 170, 54, .35) 35%, rgba(67, 170, 54, 1) 100%);
+}
+
+.flag_toolbar{
+    display: flex;
+    flex-direction: row;
+    justify-content: left;
+}
+
+.save_settings{
+    height: 40px;
+    align-self: flex-end;
+    margin-bottom: 20px;
+}
+
+/* used by patient dashboard html page*/
+
+.button_bar{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.choose_participant{
+    float: right;
+}
+
+/* used by dashboard.html page*/
+
+
+/* used by patient and data stream dashboard html pages */
+
+.bytes{
+    text-align: right;
+}
