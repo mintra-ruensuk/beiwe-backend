@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from multiprocessing.pool import ThreadPool
 from zipfile import ZipFile, ZIP_STORED
 
@@ -480,26 +482,32 @@ def json_pipeline_upload():
     researcher = Researcher.objects.get(access_key_id=access_key)
     if not researcher.validate_access_credentials(access_secret):
         return abort(403)  # incorrect secret key
+
     # case: invalid study
     study_id = request.values["study_id"]
-
     if not Study.objects.filter(object_id=study_id).exists():
         return abort(404)
 
     study_obj = Study.objects.get(object_id=study_id)
-
     # case: study not authorized for user
     if not study_obj.get_researchers().filter(id=researcher.id).exists():
         return abort(403)
 
-    json_data = request.values["summary_output"]
-    summary_type = request.values["summary_type"]
-    patient_id = request.values["patient_id"]
+    json_data = request.values.get("summary_output", None)
+    summary_type = request.values.get("summary_type", None)
+    patient_id = request.values.get("patient_id", None)
     participant_id = Participant.objects.get(patient_id=patient_id).id
-    PipelineRegistry.register_pipeline_data(study_id, participant_id, json_data, summary_type)
 
-    # Debugging
-    # print request.data
+    if json_data is None:
+        raise Exception("json_data")
+    if summary_type is None:
+        raise Exception("summary_type")
+    if patient_id is None:
+        raise Exception("patient_id")
+    if participant_id is None:
+        raise Exception("participant_id")
+
+    PipelineRegistry.register_pipeline_data(study_obj, participant_id, json_data, summary_type)
     return Response("SUCCESS", status=200)
 
 

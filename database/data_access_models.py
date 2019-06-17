@@ -33,13 +33,13 @@ class PipelineRegistry(AbstractModel):
     uploaded_at = models.DateTimeField(db_index=True)
 
     @classmethod
-    def register_pipeline_data(cls, study_id, participant_id, data, data_type):
+    def register_pipeline_data(cls, study, participant_id, data, data_type):
         cls.objects.create(
-            study_id=study_id,
+            study=study,
             participant_id=participant_id,
             processed_data=data,
             data_type=data_type,
-            uploaded_at=localtime()
+            uploaded_at=datetime.utcnow(),
         )
 
 
