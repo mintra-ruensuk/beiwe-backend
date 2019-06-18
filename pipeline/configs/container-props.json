@@ -1,6 +1,6 @@
 {
   "vcpus": 2,
-  "memory": 2000,
+  "memory": 4000,
   "command": [
     "/bin/bash",
     "Beiwe-Analysis/Pipeline/utils/runner.sh"
