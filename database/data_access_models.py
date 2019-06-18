@@ -27,7 +27,7 @@ class PipelineRegistry(AbstractModel):
     study = models.ForeignKey('Study', on_delete=models.PROTECT, related_name='pipeline_registries', db_index=True)
     participant = models.ForeignKey('Participant', on_delete=models.PROTECT, related_name='pipeline_registries', db_index=True)
 
-    data_type = models.CharField(max_length=32, db_index=True)
+    data_type = models.CharField(max_length=256, db_index=True)
     processed_data = JSONField(null=True, blank=True)
 
     uploaded_at = models.DateTimeField(db_index=True)
