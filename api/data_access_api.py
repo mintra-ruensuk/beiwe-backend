@@ -39,8 +39,18 @@ def get_and_validate_study_id(chunked_download=False):
     """
     study = _get_study_or_abort_404(request.values.get('study_id', None),
                                     request.values.get('study_pk', None))
-    if not study.is_test and chunked_download:
+
+    try:
+        # FIXME: this is an unsafe solution to identifying the exception to the raw data access rule
+        # for the batch user tasks. Update the researcher model to have a special flag.
+        r = Researcher.objects.get(access_key_id=request.values["access_key"])
+        override_for_batch = r.username.startswith("BATCH USER")
+    except Researcher.DoesNotExist:
+        override_for_batch = False
+        
+    if not override_for_batch and not study.is_test and chunked_download:
         # You're only allowed to download chunked data from test studies
+        print("study '%s' does not allow raw data download." % study.name)
         return abort(404)
     else:
         return study
@@ -56,6 +66,7 @@ def _get_study_or_abort_404(study_object_id, study_pk):
         try:
             study = Study.objects.get(object_id=study_object_id)
         except Study.DoesNotExist:
+            print("study '%s' does not exist." % study_object_id)
             return abort(404)
         else:
             return study
@@ -64,6 +75,7 @@ def _get_study_or_abort_404(study_object_id, study_pk):
         try:
             study = Study.objects.get(pk=study_pk)
         except Study.DoesNotExist:
+            print("study '%s' does not exist." % study_pk)
             return abort(404)
         else:
             return study
@@ -128,11 +140,13 @@ def get_users_in_study():
     study_object_id = request.values.get("study_id", "")
     # if not is_object_id(study_object_id):
     if not is_object_id(study_object_id):
+        print("provided object id '%s' is not an object id" % study_object_id)
         return abort(404)
     
     try:
         study = Study.objects.get(object_id=study_object_id)
     except Study.DoesNotExist:
+        print("study '%s' does not exist" % study_object_id)
         return abort(404)
     
     get_and_validate_researcher(study)
@@ -346,6 +360,7 @@ def determine_data_streams_for_db_query(query):
         
         for data_stream in query['data_types']:
             if data_stream not in ALL_DATA_STREAMS:
+                print("data stream '%s' is invalid" % data_stream)
                 return abort(404)
 
 
@@ -362,6 +377,7 @@ def determine_users_for_db_query(query):
         
         # Ensure that all user IDs are patient_ids of actual Participants
         if not Participant.objects.filter(patient_id__in=query['user_ids']).count() == len(query['user_ids']):
+            print("invalid user ids: %s" % query['user_ids'])
             return abort(404)
 
 
