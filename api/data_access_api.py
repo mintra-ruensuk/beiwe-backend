@@ -510,18 +510,29 @@ def json_pipeline_upload():
         return abort(403)
 
     json_data = request.values.get("summary_output", None)
-    summary_type = request.values.get("summary_type", None)
+    file_name = request.values.get("file_name", None)
     patient_id = request.values.get("patient_id", None)
     participant_id = Participant.objects.get(patient_id=patient_id).id
 
     if json_data is None:
         raise Exception("json_data")
-    if summary_type is None:
+    if file_name is None:
         raise Exception("summary_type")
     if patient_id is None:
         raise Exception("patient_id")
     if participant_id is None:
         raise Exception("participant_id")
+
+    if "gps_summaries" in file_name:
+        summary_type = "gps_summary"
+    elif "powerstate_summary" in file_name:
+        summary_type = "powerstate_summary"
+    elif "text_summary" in file_name:
+        summary_type = "text_summary"
+    elif "call_summary" in file_name:
+        summary_type = "call_summary"
+    else:
+        summary_type = file_name
 
     PipelineRegistry.register_pipeline_data(study_obj, participant_id, json_data, summary_type)
     return Response("SUCCESS", status=200)
