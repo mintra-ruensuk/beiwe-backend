@@ -60,7 +60,8 @@ class ChunkRegistry(AbstractModel):
     file_size = models.IntegerField(null=True, default=None)
 
     @classmethod
-    def register_chunked_data(cls, data_type, time_bin, chunk_path, file_contents, study_id, participant_id, survey_id=None):
+    def register_chunked_data(cls, data_type, time_bin, chunk_path, file_contents, study_id,
+                              participant_id, survey_id=None):
         
         if data_type not in CHUNKABLE_FILES:
             raise UnchunkableDataTypeError
@@ -88,6 +89,7 @@ class ChunkRegistry(AbstractModel):
             study_id=study_id,
             participant_id=participant_id,
             survey_id=survey_id,
+            file_size=len(file_contents),
         )
     
     @classmethod
