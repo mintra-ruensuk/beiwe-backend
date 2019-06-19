@@ -12,13 +12,8 @@
     window.all_flags_list = {{ all_flags_list|safe }};
     window.base_next_url = "{{ base_next_url|safe }}";
     window.base_past_url = "{{ base_past_url|safe }}";
-    {% if times %}
-      window.start_date = new Date({{ times[0].year}}, {{times[0].month - 1}}, {{times[0].day }});
-      window.end_date = new Date({{ times[-1].year}}, {{times[-1].month - 1}}, {{times[-1].day }});
-    {% else %}
-      window.start_date = new Date();
-      window.end_date = new Date();
-    {%  endif %}
+    window.start_date = new Date({{ times[0].year}}, {{times[0].month - 1}}, {{times[0].day }});
+    window.end_date = new Date({{ times[-1].year}}, {{times[-1].month - 1}}, {{times[-1].day }});
   </script>
 {% endblock %}
 
@@ -26,7 +21,7 @@
   {#  ################## TOP OF PAGE CONTENT ################# #}
 
   <div class="title">
-    <h1 class="h3"> {{ data_stream }} Data for {{ study_name }} Study
+    <h1 class="h3"> Processed {{ data_stream }} Data for {{ study_name }} Study
       <div class="choose_stream">
         <div class="dropdown">
           <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
@@ -45,7 +40,6 @@
   </div>
 
 {#  ----------- ADDING DROP DOWN FILTER BAR HERE ---------------------- #}
-{%  if times %}
   <div class="content" ng-controller='buttonController' id="bctrl">
     <div class="panel-group" id="accordion" role="tablist">
       <div class="panel panel-default">
@@ -54,7 +48,7 @@
             {#    THIS IS WHERE TO ADD STUFF TO MAKE WIDGETS ON TOP      #}
               Edit Filter Settings <span class="caret"></span>
           </a>
-          <div class="btn-toolbar flag_toolbar" role="toolbar">
+          <div class="btn-toolbar flag_toolbar" roll="toolbar">
             <div class="btn-group" role="group" ng-if="show_color">
               <button type="button" class="btn filter_bar color_grad">
                 Color Gradient:
@@ -152,6 +146,7 @@
 
 
   {#  ------------------- NEW GENERAL CONTENT ----------------------------------#}
+  {%  if times %}
     <div class="date_bar">
       <div>
         {% if base_past_url %}

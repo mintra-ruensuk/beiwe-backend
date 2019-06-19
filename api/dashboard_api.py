@@ -68,6 +68,8 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
                 inflection_var = DashboardInflection.objects.create(dashboard_color_setting=settings, operator=flag[0])
                 inflection_var.operator = flag[0]
                 inflection_var.inflection_point = flag[1]
+                print(inflection_var.operator)
+                print(inflection_var.inflection_point)
                 inflection_var.save()
             settings.save()
         else:
@@ -88,18 +90,19 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
 
             # save the dashboard color setting to the backend (currently is just in memory)
             settings.save()
+        show_color = "true"
 
     # ------------------ below is for a GET request - POST requests will ALSO run this code! ------------------------
+    else:
+        color_low_range, color_high_range, show_color = extract_range_args_from_request()
+        all_flags_list = extract_flag_args_from_request()
     participant_objects = Participant.objects.filter(study=study_id).order_by("patient_id")
-
     default_filters = ""
     if DashboardColorSetting.objects.filter(data_type=data_stream, study=study).exists():
         settings = DashboardColorSetting.objects.get(data_type=data_stream, study=study)
         default_filters = DashboardColorSetting.get_dashboard_color_settings(settings)
 
     start, end = extract_date_args_from_request()
-    color_low_range, color_high_range, show_color = extract_range_args_from_request()
-    all_flags_list = extract_flag_args_from_request()
     stream_data = OrderedDict((participant.patient_id,
                                dashboard_chunkregistry_query(participant.id, data_stream=data_stream))
                               for participant in participant_objects
@@ -108,8 +111,10 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
     # test if there are default settings saved,
     # and if there are, test if the default filters should be used or if the user has overridden them
     if default_filters != "":
+        print("what is going on")
         gradient_info = default_filters["gradient"]
         inflection_info = default_filters["inflections"]
+        print(all_flags_list)
         if all_flags_list == [] and color_high_range is None and color_low_range is None:
             # since none of the filters are set, parse default filters to pass in the default settings
             # set the values for gradient filter
@@ -123,6 +128,8 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
             for flag_info in inflection_info:
                 single_flag = [flag_info["operator"].encode("ascii"), flag_info["inflection_point"]]
                 all_flags_list.append(single_flag)
+                print("this is all flags list")
+                print(all_flags_list)
 
     # change the url params from jinja t/f to python understood T/F
     if show_color == "true":
@@ -155,8 +162,6 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
         next_url = ""
         past_url = ""
         byte_streams = {}
-
-    print(unique_dates)
 
     return render_template(
         'dashboard/data_stream_dashboard.html',
