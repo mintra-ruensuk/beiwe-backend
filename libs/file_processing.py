@@ -647,7 +647,8 @@ def batch_upload(upload):
         print("data uploaded!", chunk_path)
         if isinstance(chunk, ChunkRegistry):
             # If the contents are being appended to an existing ChunkRegistry object
-            chunk.low_memory_update_chunk_hash(new_contents)
+            chunk.file_size = len(new_contents)
+            chunk.low_memory_update_chunk_hash(new_contents)  # this saves
         else:
             # If a new ChunkRegistry object is being created
             # Convert the ID's used in the S3 file names into primary keys for making ChunkRegistry FKs
