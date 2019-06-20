@@ -23,6 +23,7 @@
         $scope.checkFlag = checkFlag;
         $scope.flagExists = flagExists;
         $scope.createDateRangeUrl = createDateRangeUrl;
+        $scope.addGradient = addGradient;
         $scope.flag_operator = null;
         $scope.flag_value = null;
         $scope.color_high_range = $window.color_high_range;
@@ -37,6 +38,10 @@
         setUp();
 
         // ------------------------ FUNCTIONS ----------------------- //
+
+        function addGradient() {
+            $scope.show_color = true;
+        }
 
         function createDateRangeUrl(){
             const start_date = $scope.start_date.getFullYear() + "-" + ($scope.start_date.getMonth() + 1) + "-" + $scope.start_date.getDate();
@@ -86,14 +91,7 @@
         }
 
         //create a new url for the next and past buttons
-        function createNewUrl(next_past_indicator){
-            let base_url = "";
-            if(next_past_indicator === "next"){
-                base_url = $scope.base_next_url;
-            }
-            else{
-                base_url = $scope.base_past_url;
-            }
+        function createNewUrl(base_url){
             let str = "";
             for(let flag_arr of $scope.all_flags_list){
                 str += flag_arr[0]+","+flag_arr[1]+"*";

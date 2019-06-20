@@ -12,8 +12,13 @@
     window.all_flags_list = {{ all_flags_list|safe }};
     window.base_next_url = "{{ base_next_url|safe }}";
     window.base_past_url = "{{ base_past_url|safe }}";
-    window.start_date = new Date({{ times[0].year}}, {{times[0].month - 1}}, {{times[0].day }});
-    window.end_date = new Date({{ times[-1].year}}, {{times[-1].month - 1}}, {{times[-1].day }});
+    {% if times %}
+      window.start_date = new Date({{ times[0].year}}, {{times[0].month - 1}}, {{times[0].day }});
+      window.end_date = new Date({{ times[-1].year}}, {{times[-1].month - 1}}, {{times[-1].day }});
+    {% else %}
+      window.start_date = new Date();
+      window.end_date = new Date();
+    {%  endif %}
   </script>
 {% endblock %}
 
@@ -28,9 +33,9 @@
             {{ data_stream }} <span class="caret"></span>
           </button>
           <ul class="dropdown-menu">
-            {% for stream in data_stream_dict.keys()|sort if data_stream_dict[stream] != data_stream %}
-                <li><a href="/dashboard/{{ study_id }}/data_stream/{{ stream }}">
-                  {{   data_stream_dict[stream] }}</a>
+            {% for stream in processed_data_stream_dict.keys()|sort if processed_data_stream_dict[stream] != data_stream %}
+                <li><a href="/dashboard/{{ study_id }}/processed/{{ stream }}">
+                  {{   processed_data_stream_dict[stream] }}</a>
                 </li>
             {% endfor %}
           </ul>
@@ -40,6 +45,7 @@
   </div>
 
 {#  ----------- ADDING DROP DOWN FILTER BAR HERE ---------------------- #}
+  {%  if times %}
   <div class="content" ng-controller='buttonController' id="bctrl">
     <div class="panel-group" id="accordion" role="tablist">
       <div class="panel panel-default">
@@ -70,10 +76,6 @@
             <div class="filters">
               <div class="well">
       {#           ------------- add the filter setting stuff here -------------#}
-                <label class="checkbox-inline">
-                  <input type="checkbox" ng-model="show_color">
-                  Color Gradient
-                </label>
                 <div class="input-group mb-3 color_range_min">
                   <div class="input-group-addon">
                     <span class="input-group-number" id="basic-addon1">Minimum</span>
@@ -91,6 +93,9 @@
                 <div class="invalid_input" ng-if="evalColorRange()">
                   <p>Invalid Input: Please make sure Minimum is less than Maximum.</p>
                 </div>
+                <button class="btn btn-primary add_flag" type="button" ng-if="!show_color && !evalColorRange()" ng-click="addGradient()">
+                  Add Gradient
+                </button>
               </div>
               <div class="well">
                 <div class="radio-buttons">
@@ -146,11 +151,10 @@
 
 
   {#  ------------------- NEW GENERAL CONTENT ----------------------------------#}
-  {%  if times %}
     <div class="date_bar">
       <div>
         {% if base_past_url %}
-          <a ng-click="createNewUrl('past')" class="btn btn-primary">Previous Page</a>
+          <a ng-click="createNewUrl(base_past_url)" class="btn btn-primary">Previous Page</a>
         {% endif %}
       </div>
       <div>
@@ -162,7 +166,7 @@
       </div>
       <div>
         {% if base_next_url %}
-          <a ng-click="createNewUrl('next')" class="btn btn-primary">Next Page</a>
+          <a ng-click="createNewUrl(base_next_url)" class="btn btn-primary">Next Page</a>
         {% endif %}
       </div>
     </div>
@@ -181,7 +185,7 @@
           {% for patient_id, byte_list in byte_streams.items() %} {# iterate over keys #}
             <tr>
               <th>
-                <a href="/dashboard/{{ study_id }}/patient/{{ patient_id }}">
+                <a href="/dashboard/{{ study_id }}/processed_patient/{{ patient_id }}">
                   {{ patient_id }}
                 </a>
               </th>

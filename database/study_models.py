@@ -288,6 +288,7 @@ class DashboardGradient(AbstractModel):
 
 
 class DashboardInflection(AbstractModel):
+    # an inflection corresponds to a flag value that has an operator to display a "flag" on the dashboard front end
     dashboard_color_setting = models.ForeignKey(
         DashboardColorSetting, on_delete=models.PROTECT, related_name="inflections"
     )

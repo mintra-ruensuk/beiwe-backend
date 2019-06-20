@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Participant Processed Data Dashboard{% endblock %}
+
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="/static/css/dashboard_pages.css"  type="text/css"/>
+{% endblock %}
+
+{% block content %}
+    {#  ################## TOP OF PAGE CONTENT ################# #}
+    <div class="title">
+        <h1 class="h3"> {{ participant }} Processed Data
+            <div class="choose_participant">
+                {% if patient_ids %}
+                    <div class="dropdown">
+                        <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
+                            {{ participant.patient_id }} <span class="caret"></span>
+                        </button>
+                        <ul class="dropdown-menu">
+                            {% for patient_id in patient_ids %}
+                                <li><a href="/dashboard/{{ study_id }}/processed_patient/{{ patient_id }}">
+                                    {{ patient_id }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        </h1>
+    </div>
+
+    {#  ################# MIDDLE BUTTONS #################### #}
+
+    {%  if times %}
+        <div class="dates">
+            <p>Date Range of Data Entries for Participant: {{ first_date_data.strftime('%m/%d/%Y') }}
+                - {{ last_date_data.strftime('%m/%d/%Y') }}
+            </p>
+            <p>Viewing Dates: {{ times[0].strftime('%m/%d/%Y') }} - {{ times[-1].strftime('%m/%d/%Y')}}</p>
+        </div>
+        <div class="button_bar">
+            <div>
+                {% if past_url %}
+                    <a href="{{ past_url }}" class="btn btn-primary" >Previous Page</a>
+                {% endif %}
+            </div>
+            <form method="get" action="#" >
+                <input type="date" name="start"
+                       value="{{ times[0] }}"
+                       min="{{ first_date_data }}" max="{{ last_date_data }}" >
+                <input type="date" name="end"
+                       value="{{ times[-1] }}"
+                       min="{{ first_date_data }}" max="{{ last_date_data }}" >
+                <button type="submit" class="btn btn-primary" >Submit</button>
+            </form>
+            <div>
+                {% if next_url %}
+                    <a href="{{ next_url }}" class="btn btn-primary" >Next Page</a>
+                {% endif %}
+            </div>
+        </div>
+
+        {#  ################# THE TABLE ################## #}
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th> Statistic </th>
+                    {% for time in range(times|length) %}
+                            <th>{{ times[time].strftime('%m/%d/%Y') }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            {% for stream, byte_list in byte_streams.items() %} {# iterate over keys #}
+                <div class="table_data">
+                    <tr>
+                        <th> <a href="/dashboard/{{ study_id }}/processed/{{ stream }}">
+                                        {{   data_stream_dict.get(stream) }}</a>
+                        </th>
+                        {% for bytes in byte_list %} {# iterate over bytes in values #}
+                            {% if bytes == None %}
+                                <td class="bytes">0</td>
+                            {% else %}
+                                <td class="bytes"> {{ "{:,}".format(bytes) }} </td>
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                </div>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p> There is no data currently available for {{ participant }}</p>
+    {% endif %}
+
+{% endblock %}
