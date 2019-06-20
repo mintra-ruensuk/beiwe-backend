@@ -400,7 +400,10 @@ def parse_patient_processed_data(study_id, participant):
                         last_day = time_bin
                 for stream_key in chunk.keys():
                     if stream_key in processed_data_stream_dict and chunk[stream_key] != "NA":
-                        processed_data = float(chunk[stream_key])
+                        if chunk[stream_key].encode("utf-8").find(".") == -1:
+                            processed_data = int(chunk[stream_key])
+                        else:
+                            processed_data = float(chunk[stream_key])
                         all_data.append({"time_bin": time_bin, "processed_data": processed_data, "data_stream": stream_key})
     return first_day, last_day, all_data
 
