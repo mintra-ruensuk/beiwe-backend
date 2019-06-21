@@ -31,6 +31,7 @@
     {#  ################# MIDDLE BUTTONS #################### #}
 
     {%  if times %}
+      <div class="ng-cloak">
         <div class="dates">
             <p>Date Range of Data Entries for Participant: {{ first_date_data.strftime('%m/%d/%Y') }}
                 - {{ last_date_data.strftime('%m/%d/%Y') }}
@@ -86,6 +87,7 @@
                 </div>
             {% endfor %}
         </table>
+      </div>
     {% else %}
         <p> There is no data currently available for {{ participant }}</p>
     {% endif %}

@@ -6,12 +6,13 @@
   <link rel="stylesheet" href="/static/css/dashboard_pages.css"  type="text/css"/>
   <script src="/static/javascript/dashboard_features.js"></script>
   <script type="text/javascript">
-    window.color_high_range = {{ 0 if color_high_range is none else color_high_range }};
-    window.color_low_range = {{ 0 if color_low_range is none else color_low_range}};
+    window.color_high_range = null;
+    window.color_low_range = null;
     window.show_color = {{ 'true' if show_color == True else 'false' }};
     window.all_flags_list = {{ all_flags_list|safe }};
     window.base_next_url = "{{ base_next_url|safe }}";
     window.base_past_url = "{{ base_past_url|safe }}";
+    window.current_gradient = [{{ 0 if color_low_range is none else color_low_range}}, {{ 0 if color_high_range is none else color_high_range }}];
     {% if times %}
       window.start_date = new Date({{ times[0].year}}, {{times[0].month - 1}}, {{times[0].day }});
       window.end_date = new Date({{ times[-1].year}}, {{times[-1].month - 1}}, {{times[-1].day }});
@@ -46,7 +47,7 @@
 
 {#  ----------- ADDING DROP DOWN FILTER BAR HERE ---------------------- #}
   {%  if times %}
-  <div class="content" ng-controller='buttonController' id="bctrl">
+  <div class="content ng-cloak" ng-controller='buttonController' id="bctrl">
     <div class="panel-group" id="accordion" role="tablist">
       <div class="panel panel-default">
         <div class="panel-heading" role="tab">
@@ -58,7 +59,7 @@
             <div class="btn-group" role="group" ng-if="show_color">
               <button type="button" class="btn filter_bar color_grad">
                 Color Gradient:
-                <span class="gradient">{% raw %}{{ color_low_range }} {% endraw %} - {% raw %}{{ color_high_range }}{% endraw %}</span>
+                <span class="gradient">{% raw %}{{ current_gradient[0] }} {% endraw %} - {% raw %}{{ current_gradient[1] }}{% endraw %}</span>
               </button>
               <input type="button" ng-click="removeColor()" value="x" class="btn btn-primary">
             </div>
@@ -74,29 +75,6 @@
         <div id="collapseOne" class="panel-collapse collapse" role="tabpanel">
           <div class="panel-body">
             <div class="filters">
-              <div class="well">
-      {#           ------------- add the filter setting stuff here -------------#}
-                <div class="input-group mb-3 color_range_min">
-                  <div class="input-group-addon">
-                    <span class="input-group-number" id="basic-addon1">Minimum</span>
-                  </div>
-                  <input type="number" ng-model="color_low_range" class="form-control"
-                         placeholder="Minimum">
-                </div>
-                <div class="input-group mb-3 color_range_max">
-                  <div class="input-group-addon">
-                    <span class="input-group-number" id="basic-addon1">Maximum</span>
-                  </div>
-                  <input type="number" ng-model="color_high_range" class="form-control"
-                       placeholder="Maximum">
-                </div>
-                <div class="invalid_input" ng-if="evalColorRange()">
-                  <p>Invalid Input: Please make sure Minimum is less than Maximum.</p>
-                </div>
-                <button class="btn btn-primary add_flag" type="button" ng-if="!show_color && !evalColorRange()" ng-click="addGradient()">
-                  Add Gradient
-                </button>
-              </div>
               <div class="well">
                 <div class="radio-buttons">
                   <div class="form-check">
@@ -128,16 +106,44 @@
                   <input type="number" ng-model="flag_value" class="form-control"
                        placeholder="Flag Value">
                 </div>
-                <button class="btn btn-primary add_flag" type="button" ng-if="flagExists()" ng-click="addFlag()">
+                <button class="btn btn-primary add_flag" type="button" ng-if="flagExists() === 2" ng-click="addFlag()">
                   Add Flag
                 </button>
-                <div class="invalid_input" ng-if="!flagExists()">
-                  <p>Invalid Input: Please make sure your flag is complete and unique.</p>
+                <div class="invalid_input" ng-if="flagExists() === 1">
+                  <p>Invalid Input: This flag already exists.</p>
                 </div>
               </div>
+              <div class="well">
+      {#           ------------- add the filter setting stuff here -------------#}
+                <div class="input-group mb-3 color_range_min">
+                  <div class="input-group-addon">
+                    <span class="input-group-number" id="basic-addon1">Minimum</span>
+                  </div>
+                  <input type="number" ng-model="color_low_range" class="form-control"
+                         placeholder="Minimum">
+                </div>
+                <div class="input-group mb-3 color_range_max">
+                  <div class="input-group-addon">
+                    <span class="input-group-number" id="basic-addon1">Maximum</span>
+                  </div>
+                  <input type="number" ng-model="color_high_range" class="form-control"
+                       placeholder="Maximum">
+                </div>
+                <div class="invalid_input" ng-if="evalColorRange()">
+                  <p>Invalid Input: Please make sure Minimum is less than Maximum.</p>
+                </div>
+                <div class="invalid_input" ng-if="color_high_range!== null && color_low_range !== null && show_color">
+                  <p>Only one gradient is allowed.</p>
+                </div>
+                <button class="btn btn-primary add_flag" type="button"
+                        ng-if="!show_color && !evalColorRange() && color_high_range !== null && color_low_range !== null"
+                        ng-click="addGradient()">
+                  Add Gradient
+                </button>
+              </div>
               <form action="#" method="post">
-                <input name="color_high_range" type="hidden" id="color_high_range" value="{% raw %}{{ color_high_range }}{% endraw %}"/>
-                <input name="color_low_range" type="hidden" id="color_low_range" value="{% raw %} {{ color_low_range }}{% endraw %}"/>
+                <input name="color_high_range" type="hidden" id="color_high_range" value="{% raw %}{{ getCurrentGradient(current_gradient[1]) }}{% endraw %}"/>
+                <input name="color_low_range" type="hidden" id="color_low_range" value="{% raw %} {{ getCurrentGradient(current_gradient[0]) }}{% endraw %}"/>
                 <input name="all_flags_list" type="hidden" id="all_flags_list" value="{% raw %} {{ all_flags_list }} {% endraw %}"/>
                 <button class="btn btn-primary save_settings" type="submit">
                   Save Current Filter Bar as Default Settings
@@ -148,7 +154,6 @@
         </div>
       </div>
     </div>
-
 
   {#  ------------------- NEW GENERAL CONTENT ----------------------------------#}
     <div class="date_bar">

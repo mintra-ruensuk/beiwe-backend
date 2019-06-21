@@ -40,12 +40,18 @@ def query_data_for_processed_data(study_id, data_stream):
         them are allowed to iterate outside of the range for which they have data recorded, even if there is data for
         other participants/data streams within the study outside of those date ranges.
     """
+    # left the post and get requests in the same function because the body of the get request relies on the variables
+    # set in the post request if a post request is sent --thus if a post request is sent we don't want all of the get
+    # request running
     study = get_study_or_404(study_id)
 
     # -------------------------- for a POST request --------------------------------------
     if request.method == "POST":
         color_low_range, color_high_range, all_flags_list = set_default_settings_post_request(study, data_stream)
-        show_color = "true"
+        if color_low_range == 0 and color_high_range == 0:
+            show_color = "false"
+        else:
+            show_color = "true"
 
     # ------------------ below is for a GET request - POST requests will ALSO run this code! ------------------------
     else:
@@ -57,14 +63,21 @@ def query_data_for_processed_data(study_id, data_stream):
     if DashboardColorSetting.objects.filter(data_type=data_stream, study=study).exists():
         settings = DashboardColorSetting.objects.get(data_type=data_stream, study=study)
         default_filters = DashboardColorSetting.get_dashboard_color_settings(settings)
-        gradient_info = default_filters["gradient"]
         inflection_info = default_filters["inflections"]
         if all_flags_list == [] and color_high_range is None and color_low_range is None:
             # since none of the filters are set, parse default filters to pass in the default settings
             # set the values for gradient filter
-            color_low_range = gradient_info["color_range_min"]
-            color_high_range = gradient_info["color_range_max"]
-            show_color = "true"
+            # backend: color_range_min, color_range_max --> frontend: color_low_range, color_high_range
+            # the above is consistent throughout the back and front ends
+            if settings.gradient_exists():
+                gradient_info = default_filters["gradient"]
+                color_low_range = gradient_info["color_range_min"]
+                color_high_range = gradient_info["color_range_max"]
+                show_color = "true"
+            else:
+                color_high_range = 0
+                color_low_range = 0
+                show_color = "false"
 
             # set the values for the flag/inflection filter*s*
             # the html is expecting a list of lists for the flags [[operator, value], ... ]
@@ -188,12 +201,18 @@ def query_data_for_patient_processed_data(study_id, patient_id):
 @authenticate_admin_study_access
 def get_data_for_dashboard_datastream_display(study_id, data_stream):
     """ parses information for the data stream dashboard view GET and POST requests"""
+    # left the post and get requests in the same function because the body of the get request relies on the variables
+    # set in the post request if a post request is sent --thus if a post request is sent we don't want all of the get
+    # request running
     study = get_study_or_404(study_id)
 
     # -------------------------- for a POST request --------------------------------------
     if request.method == "POST":
         color_low_range, color_high_range, all_flags_list = set_default_settings_post_request(study, data_stream)
-        show_color = "true"
+        if color_low_range == 0 and color_high_range == 0:
+            show_color = "false"
+        else:
+            show_color = "true"
 
     # ------------------ below is for a GET request - POST requests will ALSO run this code! ------------------------
     else:
@@ -214,14 +233,21 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
     # test if there are default settings saved,
     # and if there are, test if the default filters should be used or if the user has overridden them
     if default_filters != "":
-        gradient_info = default_filters["gradient"]
         inflection_info = default_filters["inflections"]
         if all_flags_list == [] and color_high_range is None and color_low_range is None:
             # since none of the filters are set, parse default filters to pass in the default settings
             # set the values for gradient filter
-            color_low_range = gradient_info["color_range_min"]
-            color_high_range = gradient_info["color_range_max"]
-            show_color = "true"
+            # backend: color_range_min, color_range_max --> frontend: color_low_range, color_high_range
+            # the above is consistent throughout the back and front ends
+            if settings.gradient_exists():
+                gradient_info = default_filters["gradient"]
+                color_low_range = gradient_info["color_range_min"]
+                color_high_range = gradient_info["color_range_max"]
+                show_color = "true"
+            else:
+                color_high_range = 0
+                color_low_range = 0
+                show_color = "false"
 
             # set the values for the flag/inflection filter*s*
             # the html is expecting a list of lists for the flags [[operator, value], ... ]
@@ -415,9 +441,16 @@ def set_default_settings_post_request(study, data_stream):
     color_low_range = request.form.get("color_low_range", 0)
 
     # convert parameters from unicode to correct types
+    # if they didn't save a gradient we don't want to save garbage
     all_flags_list = json.loads(all_flags_list)
-    color_high_range = int(json.loads(color_high_range))
-    color_low_range = int(json.loads(color_low_range))
+    if color_high_range == "0" and color_low_range == "0":
+        color_low_range = 0
+        color_high_range = 0
+        bool_create_gradient = False
+    else:
+        bool_create_gradient = True
+        color_low_range = int(json.loads(color_low_range))
+        color_high_range = int(json.loads(color_high_range))
 
     # make the operator a string
     for flag in all_flags_list:
@@ -429,20 +462,23 @@ def set_default_settings_post_request(study, data_stream):
         # now we delete the inflections associated with it
         settings = DashboardColorSetting.objects.get(data_type=data_stream, study=study)
         settings.inflections.all().delete()
+        if settings.gradient_exists():
+            settings.gradient.delete()
 
-        # create new gradient
-        gradient_variable, _ = DashboardGradient.objects.get_or_create(dashboard_color_setting=settings)
-        gradient_variable.color_range_max = color_high_range
-        gradient_variable.color_range_min = color_low_range
-        gradient_variable.save()
+        if bool_create_gradient:
+            # create new gradient
+            gradient, _ = DashboardGradient.objects.get_or_create(dashboard_color_setting=settings)
+            gradient.color_range_max = color_high_range
+            gradient.color_range_min = color_low_range
+            gradient.save()
 
         # create new inflections
         for flag in all_flags_list:
             # all_flags_list looks like this: [[operator, inflection_point], ...]
-            inflection_var = DashboardInflection.objects.create(dashboard_color_setting=settings, operator=flag[0])
-            inflection_var.operator = flag[0]
-            inflection_var.inflection_point = flag[1]
-            inflection_var.save()
+            inflection = DashboardInflection.objects.create(dashboard_color_setting=settings, operator=flag[0])
+            inflection.operator = flag[0]
+            inflection.inflection_point = flag[1]
+            inflection.save()
         settings.save()
     else:
         # this is the case if a default settings does not yet exist
@@ -450,15 +486,16 @@ def set_default_settings_post_request(study, data_stream):
         settings = DashboardColorSetting.objects.create(data_type=data_stream, study=study)
 
         # create new gradient
-        gradient_variable = DashboardGradient.objects.create(dashboard_color_setting=settings)
-        gradient_variable.color_range_max = color_high_range
-        gradient_variable.color_range_min = color_low_range
+        if bool_create_gradient:
+            gradient = DashboardGradient.objects.create(dashboard_color_setting=settings)
+            gradient.color_range_max = color_high_range
+            gradient.color_range_min = color_low_range
 
         # create new inflections
         for flag in all_flags_list:
-            inflection_var = DashboardInflection.objects.create(dashboard_color_setting=settings, operator=flag[0])
-            inflection_var.operator = flag[0]
-            inflection_var.inflection_point = flag[1]
+            inflection = DashboardInflection.objects.create(dashboard_color_setting=settings, operator=flag[0])
+            inflection.operator = flag[0]
+            inflection.inflection_point = flag[1]
 
         # save the dashboard color setting to the backend (currently is just in memory)
         settings.save()

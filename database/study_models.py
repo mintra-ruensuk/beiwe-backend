@@ -275,6 +275,15 @@ class DashboardColorSetting(AbstractModel):
             "inflections": list(self.inflections.values("operator", "inflection_point")),
         }
 
+    def gradient_exists(self):
+        try:
+            if self.gradient:
+                return True
+        except DashboardGradient.DoesNotExist:
+            # this means that the dashboard gradieint does not exist in the database
+            return False
+
+
 class DashboardGradient(AbstractModel):
     # It should be the case that there is only one gradient per DashboardColorSettings
     dashboard_color_setting = models.OneToOneField(

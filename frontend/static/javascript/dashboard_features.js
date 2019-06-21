@@ -24,8 +24,10 @@
         $scope.flagExists = flagExists;
         $scope.createDateRangeUrl = createDateRangeUrl;
         $scope.addGradient = addGradient;
+        $scope.getCurrentGradient = getCurrentGradient;
         $scope.flag_operator = null;
         $scope.flag_value = null;
+        $scope.current_gradient = $window.current_gradient;
         $scope.color_high_range = $window.color_high_range;
         $scope.color_low_range = $window.color_low_range;
         $scope.show_color = $window.show_color;
@@ -38,9 +40,20 @@
         setUp();
 
         // ------------------------ FUNCTIONS ----------------------- //
+        function getCurrentGradient(gradient_value){
+            if(gradient_value === null){
+                return 0;
+            }
+            return gradient_value;
+
+        }
+
 
         function addGradient() {
             $scope.show_color = true;
+            $scope.current_gradient = [$scope.color_low_range, $scope.color_high_range];
+            $scope.color_low_range = null;
+            $scope.color_high_range = null;
         }
 
         function createDateRangeUrl(){
@@ -51,24 +64,23 @@
             for(let flag_arr of $scope.all_flags_list){
                 str += flag_arr[0]+","+flag_arr[1]+"*";
             }
+
             const flags = str.substr(0, str.length-1);
             $window.location = (base_url+"&color_low="+$scope.color_low_range+"&color_high="+$scope.color_high_range+"&show_color="+$scope.show_color+"&flags="+flags);
         }
 
         // check if flag is already present
         function flagExists(){
-            let flag_exists = false;
-            if ($scope.all_flags_list !== []) {
+            if ($scope.all_flags_list !== [] && $scope.flag_operator !== null && $scope.flag_value !== null) {
                 for (let flag_arr of $scope.all_flags_list) {
                     if (flag_arr[0] === $scope.flag_operator && $scope.flag_value === flag_arr[1]) {
-                        flag_exists = true;
+                        return 1; // this shows the error message that the flag already exists
                     }
                 }
+                return 2; //this shows the add flag button bc they have entered things and it does not currently exist
             }
-            if($scope.flag_value === null || $scope.flag_operator === null){
-                flag_exists = true;
-            }
-            return !flag_exists;
+            // this shows nothing because they haven't entered anything
+            return 3;
         }
 
         //remove flag that got clicked
@@ -88,6 +100,8 @@
         //add flag
         function addFlag(){
             $scope.all_flags_list.push([$scope.flag_operator, $scope.flag_value]);
+            $scope.flag_operator = null;
+            $scope.flag_value = null;
         }
 
         //create a new url for the next and past buttons
@@ -97,22 +111,26 @@
                 str += flag_arr[0]+","+flag_arr[1]+"*";
             }
             const flags = str.substr(0, str.length-1);
-            $window.location = (base_url+"&color_low="+$scope.color_low_range+"&color_high="+$scope.color_high_range+"&show_color="+$scope.show_color+"&flags="+flags);
+            $window.location = (base_url+"&color_low="+$scope.current_gradient[0]+"&color_high="+$scope.current_gradient[1]+"&show_color="+$scope.show_color+"&flags="+flags);
         }
 
         //remove color if widget is unclicked
         function removeColor(){
             $scope.show_color=false;
+            $scope.current_gradient = [null, null];
         }
 
         // evaluate color range to make sure min is smaller than max
         function evalColorRange(){
-            return !($scope.color_high_range > $scope.color_low_range);
+            if($scope.color_high_range !== null && $scope.color_low_range !== null)
+                return !($scope.color_high_range > $scope.color_low_range);
+            return false;
+
         }
 
         // function that originally sets up the colors before input
         function setUp() {
-            if($window.color_high_range === 0 && $window.color_low_range === 0) {
+            if($window.current_gradient[0] === 0 && $window.current_gradient[1] === 0) {
                 let max = null;
                 let min = null;
                 const table = $("#dashboard-datastream-table tbody");
@@ -131,8 +149,20 @@
                         min = num;
                     }
                 });
-                $scope.color_high_range = max;
-                $scope.color_low_range = min;
+                $scope.color_high_range = null;
+                $scope.color_low_range = null;
+                //this is a case that is very annoying. basically, if you are loading the page with no default color setting,
+                // you want the gradient to default to the max and min on the page. however, if you are loading the
+                // page WITH a default color setting but you DON'T want that to show, AND you choose to save the current
+                // filter settings to the backend without changing the gradient info (which you have not touched),
+                // it will save the default that you set on the page instead of the nothing gradient which you had originally
+                // loaded from the default color settings model.
+                if($scope.show_color === true) {
+                    $scope.current_gradient = [min, max]
+                }
+                else{
+                    $scope.current_gradient = [null, null]
+                }
             }
         }
 
@@ -165,9 +195,9 @@
                 }
             }
 
-            if($scope.show_color && $scope.color_low_range < $scope.color_high_range) {
-                const max = $scope.color_high_range;
-                const min = $scope.color_low_range;
+            if($scope.show_color && $scope.current_gradient[0] < $scope.current_gradient[1]) {
+                const max = $scope.current_gradient[1];
+                const min = $scope.current_gradient[0];
                 const adjusted_max = max - min;
                 value -= min;
                 amount_gradient = value / adjusted_max;
