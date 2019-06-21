@@ -93,7 +93,8 @@ class ChunkRegistry(AbstractModel):
         )
     
     @classmethod
-    def register_unchunked_data(cls, data_type, unix_timestamp, chunk_path, study_id, participant_id, survey_id=None):
+    def register_unchunked_data(cls, data_type, unix_timestamp, chunk_path, study_id, participant_id,
+                                file_contents, survey_id=None):
         # see comment in register_chunked_data above
         time_bin = timezone.make_aware(datetime.utcfromtimestamp(unix_timestamp), timezone.utc)
         
@@ -109,6 +110,7 @@ class ChunkRegistry(AbstractModel):
             study_id=study_id,
             participant_id=participant_id,
             survey_id=survey_id,
+            file_size=len(file_contents),
         )
 
     @classmethod
