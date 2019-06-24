@@ -25,10 +25,10 @@
 
 {% block content %}
   {#  ################## TOP OF PAGE CONTENT ################# #}
-
+<a href="/dashboard/{{ study_id }}" class="btn btn-default" ><-- Dashboard Home</a>
   <div class="title">
     <h1 class="h3"> Bytes {{ data_stream }} Data for {{ study_name }} Study
-      <div class="choose_stream">
+      <div class="choose-stream">
         <div class="dropdown">
           <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
             {{ data_stream }} <span class="caret"></span>
@@ -51,21 +51,21 @@
     <div class="panel-group" id="accordion" role="tablist">
       <div class="panel panel-default">
         <div class="panel-heading" role="tab">
-          <a class="btn btn-warning edit_settings" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseOne">
+          <a class="btn btn-warning edit-settings" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseOne">
             {#    THIS IS WHERE TO ADD STUFF TO MAKE WIDGETS ON TOP      #}
               Edit Filter Settings <span class="caret"></span>
           </a>
-          <div class="btn-toolbar flag_toolbar" role="toolbar">
+          <div class="btn-toolbar flag-toolbar" role="toolbar">
             <div class="btn-group" role="group" ng-if="show_color">
-              <button type="button" class="btn filter_bar color_grad">
+              <button type="button" class="btn filter-bar color-grad">
                 Color Gradient:
                 <span class="gradient">{% raw %}{{ current_gradient[0] }} {% endraw %} - {% raw %}{{ current_gradient[1] }}{% endraw %}</span>
               </button>
               <input type="button" ng-click="removeColor()" value="x" class="btn btn-primary">
             </div>
 
-            <div class="btn-group filter_flag_item" role="group" ng-repeat="flag in all_flags_list">
-              <button type="button" class="btn filter_bar flag_filter">
+            <div class="btn-group filter-flag-item" role="group" ng-repeat="flag in all_flags_list">
+              <button type="button" class="btn filter-bar flag-filter">
                 Flag Values: {% raw %}{{ flag[0] }} {{ flag[1] }}{% endraw %}
               </button>
               <input type="button" ng-click="removeFlag(flag)" value="x" class="btn btn-primary">
@@ -106,7 +106,7 @@
                   <input type="number" ng-model="flag_value" class="form-control"
                        placeholder="Flag Value">
                 </div>
-                <button class="btn btn-primary add_flag" type="button" ng-if="flagExists() === 2" ng-click="addFlag()">
+                <button class="btn btn-primary add-flag" type="button" ng-if="flagExists() === 2" ng-click="addFlag()">
                   Add Flag
                 </button>
                 <div class="invalid_input" ng-if="flagExists() === 1">
@@ -135,7 +135,7 @@
                 <div class="invalid_input" ng-if="color_high_range!== null && color_low_range !== null && show_color">
                   <p>Only one gradient is allowed.</p>
                 </div>
-                <button class="btn btn-primary add_flag" type="button"
+                <button class="btn btn-primary add-flag" type="button"
                         ng-if="!show_color && !evalColorRange() && color_high_range !== null && color_low_range !== null"
                         ng-click="addGradient()">
                   Add Gradient
@@ -148,6 +148,9 @@
                 <button class="btn btn-primary save_settings" type="submit">
                   Save Current Filter Bar as Default Settings
                 </button>
+                {#       note: can add this command to the save button to have user confirmation that settings are saved
+                         - it's a little weird though bc it says saved before it reloads the page.
+                         onclick="alert('Default Settings Saved')"#}
               </form>
             </div>
           </div>
