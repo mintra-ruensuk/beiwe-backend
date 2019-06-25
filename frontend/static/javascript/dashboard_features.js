@@ -48,7 +48,6 @@
 
         }
 
-
         function addGradient() {
             $scope.show_color = true;
             $scope.current_gradient = [$scope.color_low_range, $scope.color_high_range];
@@ -66,7 +65,7 @@
             }
 
             const flags = str.substr(0, str.length-1);
-            $window.location = (base_url+"&color_low="+$scope.color_low_range+"&color_high="+$scope.color_high_range+"&show_color="+$scope.show_color+"&flags="+flags);
+            $window.location = (base_url+"&color_low="+$scope.current_gradient[0]+"&color_high="+$scope.current_gradient[1]+"&show_color="+$scope.show_color+"&flags="+flags);
         }
 
         // check if flag is already present

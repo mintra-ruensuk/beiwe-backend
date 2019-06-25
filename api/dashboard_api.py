@@ -5,7 +5,8 @@ from datetime import datetime, timedelta, date
 from flask import abort, Blueprint, render_template, request
 
 from database.study_models import Study, DashboardColorSetting, DashboardGradient, DashboardInflection
-from config.constants import ALL_DATA_STREAMS, REDUCED_API_TIME_FORMAT, data_stream_dict, processed_data_stream_dict
+from config.constants import ALL_DATA_STREAMS, REDUCED_API_TIME_FORMAT, data_stream_dict, processed_data_stream_dict, \
+    complete_data_stream_dict
 from database.data_access_models import ChunkRegistry, PipelineRegistry
 from database.user_models import Participant
 from libs.admin_authentication import authenticate_admin_study_access
@@ -27,179 +28,14 @@ def dashboard_page(study_id):
         study_name=Study.objects.filter(pk=study_id).values_list("name", flat=True).get(),
         participants=participants,
         study_id=study_id,
-        data_stream_dict=data_stream_dict,
-        processed_data_stream_dict=processed_data_stream_dict,
-    )
-
-
-@dashboard_api.route("/dashboard/<string:study_id>/processed/<string:data_stream>", methods=["GET", "POST"])
-@authenticate_admin_study_access
-def query_data_for_processed_data(study_id, data_stream):
-    """ parses information for the data stream dashboard for the processed data
-        note: both of the processed data dashboards require lots of parseing to extract the dates. Thus, neither of
-        them are allowed to iterate outside of the range for which they have data recorded, even if there is data for
-        other participants/data streams within the study outside of those date ranges.
-    """
-    # left the post and get requests in the same function because the body of the get request relies on the variables
-    # set in the post request if a post request is sent --thus if a post request is sent we don't want all of the get
-    # request running
-    study = get_study_or_404(study_id)
-
-    # -------------------------- for a POST request --------------------------------------
-    if request.method == "POST":
-        color_low_range, color_high_range, all_flags_list = set_default_settings_post_request(study, data_stream)
-        if color_low_range == 0 and color_high_range == 0:
-            show_color = "false"
-        else:
-            show_color = "true"
-
-    # ------------------ below is for a GET request - POST requests will ALSO run this code! ------------------------
-    else:
-        color_low_range, color_high_range, show_color = extract_range_args_from_request()
-        all_flags_list = extract_flag_args_from_request()
-
-    # if it's a post request the defaultcolorsetting will exist and if it's a get request the else will have happened
-    # and thus color_low_range, color_high_range, show_color, all_flags_list will exist as well
-    if DashboardColorSetting.objects.filter(data_type=data_stream, study=study).exists():
-        settings = DashboardColorSetting.objects.get(data_type=data_stream, study=study)
-        default_filters = DashboardColorSetting.get_dashboard_color_settings(settings)
-        inflection_info = default_filters["inflections"]
-        if all_flags_list == [] and color_high_range is None and color_low_range is None:
-            # since none of the filters are set, parse default filters to pass in the default settings
-            # set the values for gradient filter
-            # backend: color_range_min, color_range_max --> frontend: color_low_range, color_high_range
-            # the above is consistent throughout the back and front ends
-            if settings.gradient_exists():
-                gradient_info = default_filters["gradient"]
-                color_low_range = gradient_info["color_range_min"]
-                color_high_range = gradient_info["color_range_max"]
-                show_color = "true"
-            else:
-                color_high_range = 0
-                color_low_range = 0
-                show_color = "false"
-
-            # set the values for the flag/inflection filter*s*
-            # the html is expecting a list of lists for the flags [[operator, value], ... ]
-            all_flags_list = []
-            for flag_info in inflection_info:
-                single_flag = [flag_info["operator"].encode("utf-8"), flag_info["inflection_point"]]
-                all_flags_list.append(single_flag)
-
-    # change the url params from jinja t/f to python understood T/F
-    if show_color == "true":
-        show_color = True
-    elif show_color == "false":
-        show_color = False
-
-    # general data fetching
-    # fetch a bunch of data
-    participant_objects = Participant.objects.filter(study=study_id).order_by("patient_id")
-    start, end = extract_date_args_from_request()
-    first_day, last_day, stream_data = parse_processed_data(study_id, participant_objects, data_stream)
-    unique_dates = []
-    next_url = ""
-    past_url = ""
-    byte_streams = {}
-    data_exists = None
-    if first_day is not None:
-        unique_dates, _, _ = get_unique_dates(start, end, first_day, last_day)
-        next_url, past_url = create_next_past_urls(first_day, last_day, start=start, end=end)
-
-        # get the byte streams per date for each patient for a specific data stream for those dates
-        byte_streams = OrderedDict(
-            (participant.patient_id, [
-                get_bytes_processed_data_match(stream_data[participant.patient_id], date) for date in unique_dates
-            ]) for participant in participant_objects
-        )
-        # check if there is data to display
-        data_exists = len(
-            [data for patient in byte_streams.keys() for data in byte_streams[patient] if data is not None]) > 0
-
-    # this has to exist bc you have to double check for the data_stream dashes but not the patient dashes
-    if first_day is None or (not data_exists and past_url == ""):
-        unique_dates = []
-        next_url = ""
-        past_url = ""
-        byte_streams = {}
-
-    return render_template(
-        'dashboard/processed_datastream_dashboard.html',
-        study_name=study.name,
-        data_stream=processed_data_stream_dict.get(data_stream),
-        times=unique_dates,
-        byte_streams=byte_streams,
-        base_next_url=next_url,
-        base_past_url=past_url,
-        study_id=study_id,
-        processed_data_stream_dict=processed_data_stream_dict,
-        color_low_range=color_low_range,
-        color_high_range=color_high_range,
-        first_day=first_day,
-        last_day=last_day,
-        show_color=show_color,
-        all_flags_list=all_flags_list,
-    )
-
-
-@dashboard_api.route("/dashboard/<string:study_id>/processed_patient/<string:patient_id>", methods=["GET", "POST"])
-@authenticate_admin_study_access
-def query_data_for_patient_processed_data(study_id, patient_id):
-    """ parses PROCESSED data to be displayed for the singular participant dashboard view
-        note: both of the processed data dashboards require lots of parseing to extract the dates. Thus, neither of
-        them are allowed to iterate outside of the range for which they have data recorded, even if there is data for
-        other participants/data streams within the study outside of those date ranges.
-    """
-    # query for some general data
-    participant = get_participant(patient_id, study_id)
-    start, end = extract_date_args_from_request()
-    patient_ids = list(Participant.objects
-                       .filter(study=study_id)
-                       .exclude(patient_id=patient_id)
-                       .values_list("patient_id", flat=True)
-                       )
-
-    # get the processed data for a specific patient
-    # all_data is a list of dicts [{"time_bin": , "stream": , "processed_data": }...]
-    first_date_data_entry, last_date_data_entry, all_data = parse_patient_processed_data(study_id, participant)
-
-    # create a list of all the unique days in which data was recorded for this study
-    if all_data:
-        unique_dates, _, _ = get_unique_dates(start, end, first_date_data_entry, last_date_data_entry)
-        next_url, past_url = create_next_past_urls(first_date_data_entry, last_date_data_entry, start=start, end=end)
-
-        # get the byte data for the dates that have data collected in that week
-        byte_streams = OrderedDict(
-            (stream, [
-                get_bytes_patient_processed_match(all_data, date, stream) for date in unique_dates
-            ]) for stream in processed_data_stream_dict.keys()
-        )
-    else:  # edge case if no data has been entered
-        byte_streams = {}
-        unique_dates = []
-        next_url = ""
-        past_url = ""
-        first_date_data_entry = ""
-        last_date_data_entry = ""
-
-    return render_template(
-        'dashboard/processed_participant_dashboard.html',
-        participant=participant,
-        times=unique_dates,
-        byte_streams=byte_streams,
-        next_url=next_url,
-        past_url=past_url,
-        patient_ids=patient_ids,
-        study_id=study_id,
-        first_date_data=first_date_data_entry,
-        last_date_data=last_date_data_entry,
-        data_stream_dict=processed_data_stream_dict,
+        data_stream_dict=complete_data_stream_dict,
     )
 
 
 @dashboard_api.route("/dashboard/<string:study_id>/data_stream/<string:data_stream>", methods=["GET", "POST"])
 @authenticate_admin_study_access
 def get_data_for_dashboard_datastream_display(study_id, data_stream):
+
     """ parses information for the data stream dashboard view GET and POST requests"""
     # left the post and get requests in the same function because the body of the get request relies on the variables
     # set in the post request if a post request is sent --thus if a post request is sent we don't want all of the get
@@ -218,18 +54,12 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
     else:
         color_low_range, color_high_range, show_color = extract_range_args_from_request()
         all_flags_list = extract_flag_args_from_request()
-    participant_objects = Participant.objects.filter(study=study_id).order_by("patient_id")
     default_filters = ""
     if DashboardColorSetting.objects.filter(data_type=data_stream, study=study).exists():
         settings = DashboardColorSetting.objects.get(data_type=data_stream, study=study)
         default_filters = DashboardColorSetting.get_dashboard_color_settings(settings)
 
-    start, end = extract_date_args_from_request()
-    stream_data = OrderedDict((participant.patient_id,
-                               dashboard_chunkregistry_query(participant.id, data_stream=data_stream))
-                              for participant in participant_objects
-                              )
-
+    # -------------------------------- dealing with color settings -------------------------------------------------
     # test if there are default settings saved,
     # and if there are, test if the default filters should be used or if the user has overridden them
     if default_filters != "":
@@ -262,26 +92,52 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
     elif show_color == "false":
         show_color = False
 
-    # general data fetching
-    first_day, last_day = dashboard_chunkregistry_date_query(study_id)
+    # -----------------------------------  general data fetching --------------------------------------------
+    start, end = extract_date_args_from_request()
+    participant_objects = Participant.objects.filter(study=study_id).order_by("patient_id")
     unique_dates = []
     next_url = ""
     past_url = ""
     byte_streams = {}
-    data_exists = False
-    if first_day is not None:
-        unique_dates, _, _ = get_unique_dates(start, end, first_day, last_day)
-        next_url, past_url = create_next_past_urls(first_day, last_day, start=start, end=end)
+    data_exists = None
 
-        # get the byte streams per date for each patient for a specific data stream for those dates
-        byte_streams = OrderedDict(
-            (participant.patient_id, [
-                get_bytes_participant_match(stream_data[participant.patient_id], date) for date in unique_dates
-            ]) for participant in participant_objects
-        )
-        # check if there is data to display
-        data_exists = len([data for patient in byte_streams.keys() for data in byte_streams[patient] if data is not None]) > 0
+    # --------------------- decide whether data is in Processed DB or Bytes DB -----------------------------
+    if data_stream in ALL_DATA_STREAMS:
+        first_day, last_day = dashboard_chunkregistry_date_query(study_id, data_stream)
+        if first_day is not None:
+            stream_data = OrderedDict((participant.patient_id,
+                                       dashboard_chunkregistry_query(participant.id, data_stream=data_stream))
+                                      for participant in participant_objects
+                                      )
+            unique_dates, _, _ = get_unique_dates(start, end, first_day, last_day)
+            next_url, past_url = create_next_past_urls(first_day, last_day, start=start, end=end)
 
+            # get the byte streams per date for each patient for a specific data stream for those dates
+            byte_streams = OrderedDict(
+                (participant.patient_id, [
+                    get_bytes_participant_match(stream_data[participant.patient_id], date) for date in unique_dates
+                ]) for participant in participant_objects
+            )
+            # check if there is data to display
+            data_exists = len([data for patient in byte_streams.keys() for data in byte_streams[patient] if data is not None]) > 0
+    else:
+        start, end = extract_date_args_from_request()
+        first_day, last_day, stream_data = parse_processed_data(study_id, participant_objects, data_stream)
+        if first_day is not None:
+            unique_dates, _, _ = get_unique_dates(start, end, first_day, last_day)
+            next_url, past_url = create_next_past_urls(first_day, last_day, start=start, end=end)
+
+            # get the byte streams per date for each patient for a specific data stream for those dates
+            byte_streams = OrderedDict(
+                (participant.patient_id, [
+                    get_bytes_processed_data_match(stream_data[participant.patient_id], date) for date in unique_dates
+                ]) for participant in participant_objects
+            )
+            # check if there is data to display
+            data_exists = len(
+                [data for patient in byte_streams.keys() for data in byte_streams[patient] if data is not None]) > 0
+
+    # ---------------------------------- base case if there is no data ------------------------------------------
     if first_day is None or (not data_exists and past_url == ""):
         unique_dates = []
         next_url = ""
@@ -291,13 +147,13 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
     return render_template(
         'dashboard/data_stream_dashboard.html',
         study_name=study.name,
-        data_stream=data_stream_dict.get(data_stream),
+        data_stream=complete_data_stream_dict.get(data_stream),
         times=unique_dates,
         byte_streams=byte_streams,
         base_next_url=next_url,
         base_past_url=past_url,
         study_id=study_id,
-        data_stream_dict=data_stream_dict,
+        data_stream_dict=complete_data_stream_dict,
         color_low_range=color_low_range,
         color_high_range=color_high_range,
         first_day=first_day,
@@ -320,26 +176,70 @@ def get_data_for_dashboard_patient_display(study_id, patient_id):
                        .values_list("patient_id", flat=True)
                        )
 
-    # create a list of all the unique days in which data was recorded for this study
+    # ----------------- dates for bytes data streams -----------------------
     if chunks:
         first_day, last_day = dashboard_chunkregistry_date_query(study_id)
-        unique_dates, first_date_data_entry, last_date_data_entry = \
+        _, first_date_data_entry, last_date_data_entry = \
             get_unique_dates(start, end, first_day, last_day, chunks)
-        next_url, past_url = create_next_past_urls(first_day, last_day, start=start, end=end)
 
+    # --------------- dates for  processed data streams -------------------
+    # all_data is a list of dicts [{"time_bin": , "stream": , "processed_data": }...]
+    processed_first_date_data_entry, processed_last_date_data_entry, all_data = parse_patient_processed_data(study_id, participant)
+
+    # ------- decide the first date of data entry from processed AND bytes data as well as put the data together ------
+    # but only if there are both processed and bytes data
+    if chunks and all_data:
+        if (processed_first_date_data_entry - first_date_data_entry).days < 0:
+            first_date_data_entry = processed_first_date_data_entry
+        if (processed_last_date_data_entry - last_date_data_entry).days < 0:
+            last_date_data_entry = processed_last_date_data_entry
+    if all_data and not chunks:
+        first_date_data_entry = processed_first_date_data_entry
+        last_date_data_entry = processed_last_date_data_entry
+
+    # ---------------------- get next/past urls and unique dates, as long as data has been entered -------------------
+    if chunks or all_data:
+        next_url, past_url = create_next_past_urls(first_date_data_entry, last_date_data_entry, start=start, end=end)
+        unique_dates, _, _ = get_unique_dates(start, end, first_date_data_entry, last_date_data_entry)
+        print(first_date_data_entry, last_date_data_entry)
+        print(next_url, past_url)
+
+    # --------------------- get all the data using the correct unique dates from both data sets ----------------------
         # get the byte data for the dates that have data collected in that week
+    if all_data:
+        processed_byte_streams = OrderedDict(
+            (stream, [
+                get_bytes_patient_processed_match(all_data, date, stream) for date in unique_dates
+            ]) for stream in processed_data_stream_dict.keys()
+        )
+    if chunks:
         byte_streams = OrderedDict(
             (stream, [
                 get_bytes_data_stream_match(chunks, date, stream) for date in unique_dates
             ]) for stream in ALL_DATA_STREAMS
         )
-    else:  # edge case if no data has been entered
+    if chunks and all_data:
+        byte_streams.update(processed_byte_streams)
+    elif all_data and not chunks:
+        byte_streams = OrderedDict(
+            (stream, [
+                None for date in unique_dates
+            ]) for stream in ALL_DATA_STREAMS
+        )
+        byte_streams.update(processed_byte_streams)
+    elif chunks and not all_data:
+        processed_byte_streams = OrderedDict(
+            (stream, [
+                None for date in unique_dates
+            ]) for stream in processed_data_stream_dict.keys()
+        )
+        byte_streams.update(processed_byte_streams)
+    # -------------------------  edge case if no data has been entered -----------------------------------
+    else:
         byte_streams = {}
         unique_dates = []
         next_url = ""
         past_url = ""
-        first_day = 0
-        last_day = 0
         first_date_data_entry = ""
         last_date_data_entry = ""
 
@@ -352,11 +252,9 @@ def get_data_for_dashboard_patient_display(study_id, patient_id):
         past_url=past_url,
         patient_ids=patient_ids,
         study_id=study_id,
-        first_day=first_day,
-        last_day=last_day,
         first_date_data=first_date_data_entry,
         last_date_data=last_date_data_entry,
-        data_stream_dict=data_stream_dict,
+        data_stream_dict=complete_data_stream_dict,
     )
 
 
@@ -515,8 +413,8 @@ def get_unique_dates(start, end, first_day, last_day, chunks=None):
     first_date_data_entry = None
     last_date_data_entry = None
     if chunks:
-        all_dates = list(set(
-            chunk["time_bin"].date() for chunk in chunks if chunk["time_bin"].date() >= first_day)
+        all_dates = list(
+            chunk["time_bin"].date() for chunk in chunks if chunk["time_bin"].date() >= first_day
             # must be >= first day bc there are some point for 1970 that get filtered out bc obv are garbage
         )
         all_dates.sort()
@@ -562,9 +460,10 @@ def create_next_past_urls(first_day, last_day, start=None, end=None):
     if start and end:
         duration = (end.date() - start.date()).days
     else:
-        duration = 7
+        duration = 6
         start = datetime.combine(first_day, datetime.min.time())
-        end = datetime.combine(first_day + timedelta(days=7), datetime.min.time())
+        end = datetime.combine(first_day + timedelta(days=6), datetime.min.time())
+        print(start, end)
 
     if 0 < (start.date() - first_day).days < duration:
         past_url = "?start=" + (start.date() - timedelta(days=(duration + 1))).strftime(REDUCED_API_TIME_FORMAT) + \

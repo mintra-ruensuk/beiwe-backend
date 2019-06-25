@@ -48,11 +48,12 @@
             <form method="get" action="#" >
                 <input type="date" name="start"
                        value="{{ times[0] }}"
-                       min="{{ first_day }}" max="{{ last_day }}" >
+                       min="{{ first_date_data }}" max="{{ last_date_data }}" >
                 <input type="date" name="end"
                        value="{{ times[-1] }}"
-                       min="{{ first_day }}" max="{{ last_day }}" >
-                <button type="submit" class="btn btn-primary" >Submit</button>
+                       min="{{ first_date_data }}" max="{{ last_date_data }}" >
+
+              <button type="submit" class="btn btn-primary" >Submit</button>
             </form>
             <div>
                 {% if next_url %}

@@ -15,7 +15,7 @@ survey_api = Blueprint('survey_api', __name__)
 @authenticate_admin_study_access
 def create_survey(study_id=None, survey_type='tracking_survey'):
     new_survey = Survey.create_with_settings(study_id=study_id, survey_type=survey_type)
-    return redirect('edit_survey/{:d}'.format(new_survey.id))
+    return redirect('/edit_survey/{:d}'.format(new_survey.id))
 
 
 @survey_api.route('/delete_survey/<string:survey_id>', methods=['GET', 'POST'])
