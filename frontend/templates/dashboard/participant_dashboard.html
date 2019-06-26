@@ -2,13 +2,31 @@
 {% block title %}Participant Dashboard{% endblock %}
 
 {% block head %}
-    {{ super() }}
-    <link rel="stylesheet" href="/static/css/dashboard_pages.css"  type="text/css"/>
+  {{ super() }}
+  <link rel="stylesheet" href="/static/css/dashboard_pages.css"  type="text/css"/>
+  <link rel="stylesheet" href="/static/css/libraries/bootstrap-datetimepicker.css"  type="text/css"/>
+  <script type="text/javascript" src="/static/javascript/libraries/moment.js"></script>
+  <script type="text/javascript" src="/static/javascript/libraries/transition.js"></script>
+  <script type="text/javascript" src="/static/javascript/libraries/collapse.js"></script>
+  <script type="text/javascript" src="/static/javascript/libraries/bootstrap-datetimepicker.js"></script>
+  <script src="/static/javascript/patient_dashboard_features.js"></script>
+  <script type="text/javascript">
+    {% if first_date_data and last_date_data %}
+      window.first_day = new Date({{ first_date_data.year}}, {{first_date_data.month - 1}}, {{first_date_data.day }});
+      window.last_day = new Date({{ last_date_data.year}}, {{last_date_data.month - 1}}, {{last_date_data.day }});
+    {% endif %}
+  {% if times %}
+      window.start_date = new Date({{ times[0].year}}, {{times[0].month - 1}}, {{times[0].day }});
+      window.end_date = new Date({{ times[-1].year}}, {{times[-1].month - 1}}, {{times[-1].day }});
+    {% else %}
+      window.start_date = new Date();
+      window.end_date = new Date();
+    {%  endif %}
+  </script>
 {% endblock %}
 
 {% block content %}
     {#  ################## TOP OF PAGE CONTENT ################# #}
-  <a href="/dashboard/{{ study_id }}" class="btn btn-default" ><-- Dashboard Home</a>
     <div class="title">
         <h1 class="h3"> {{ participant }}
             <div class="choose_participant">
@@ -32,29 +50,47 @@
     {#  ################# MIDDLE BUTTONS #################### #}
 
     {%  if times %}
-      <div class="ng-cloak">
+      <div class="content ng-cloak" ng-controller='buttonController' id="bctrl">
         <div class="dates">
             <p>Date Range of Data Entries for Participant: {{ first_date_data.strftime('%m/%d/%Y') }}
                 - {{ last_date_data.strftime('%m/%d/%Y') }}
             </p>
             <p>Viewing Dates: {{ times[0].strftime('%m/%d/%Y') }} - {{ times[-1].strftime('%m/%d/%Y')}}</p>
         </div>
-        <div class="button_bar">
+        <div class="date_bar">
             <div>
                 {% if past_url %}
                     <a href="{{ past_url }}" class="btn btn-primary" >Older</a>
                 {% endif %}
             </div>
-            <form method="get" action="#" >
-                <input type="date" name="start"
-                       value="{{ times[0] }}"
-                       min="{{ first_date_data }}" max="{{ last_date_data }}" >
-                <input type="date" name="end"
-                       value="{{ times[-1] }}"
-                       min="{{ first_date_data }}" max="{{ last_date_data }}" >
+            <div class="choose-date">
+              {# Start Date #}
+              <div class="col-sm-4">
+                <div class="form-group">
+                  <label for="start_datetime">Start Date</label>
+                  <div class="input-group date" id="start_datetimepicker">
+                    <input type="text" class="form-control" id="start_datetime" value="">
+                    <span class="input-group-addon">
+                      <span class="glyphicon glyphicon-calendar"></span>
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-              <button type="submit" class="btn btn-primary" >Submit</button>
-            </form>
+              {# End Date #}
+              <div class="col-sm-4">
+                <div class="form-group">
+                  <label for="end_datetime">End Date</label>
+                  <div class="input-group date" id="end_datetimepicker">
+                    <input type="text" class="form-control" id="end_datetime">
+                    <span class="input-group-addon">
+                      <span class="glyphicon glyphicon-calendar"></span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <a ng-click="createPatientDateRangeUrl()" class="btn btn-primary">Submit</a>
+            </div>
             <div>
                 {% if next_url %}
                     <a href="{{ next_url }}" class="btn btn-primary" >Newer</a>

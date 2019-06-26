@@ -1,18 +1,12 @@
 /* used by data stream dashboard html page*/
 
-/*.button_bar_upper{*/
-/*    display: flex;*/
-/*    flex-direction: row;*/
-/*    justify-content: flex-start;*/
-/*    margin-bottom: 10px;*/
-/*}*/
-
 .date_bar{
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+    align-items: flex-end;
     margin-bottom: 10px;
-    margin-top: 10px;
+    /*margin-top: 10px;*/
 }
 
 .color_range_min{
@@ -94,8 +88,6 @@
     margin-bottom: 20px;
 }
 
-/* used by patient dashboard html page*/
-
 .button_bar{
     display: flex;
     flex-direction: row;
@@ -109,6 +101,13 @@
 
 .btn{
     height: 35px;
+}
+
+.choose-date{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
 }
 
 /* used by dashboard.html page*/

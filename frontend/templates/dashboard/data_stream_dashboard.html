@@ -18,6 +18,10 @@
     window.base_next_url = "{{ base_next_url|safe }}";
     window.base_past_url = "{{ base_past_url|safe }}";
     window.current_gradient = [{{ 0 if color_low_range is none else color_low_range}}, {{ 0 if color_high_range is none else color_high_range }}];
+    {% if first_day and last_day %}
+      window.first_day = new Date({{ first_day.year}}, {{first_day.month - 1}}, {{first_day.day }});
+      window.last_day = new Date({{ last_day.year}}, {{last_day.month - 1}}, {{last_day.day }});
+    {% endif %}
     {% if times %}
       window.start_date = new Date({{ times[0].year}}, {{times[0].month - 1}}, {{times[0].day }});
       window.end_date = new Date({{ times[-1].year}}, {{times[-1].month - 1}}, {{times[-1].day }});
@@ -30,7 +34,6 @@
 
 {% block content %}
   {#  ################## TOP OF PAGE CONTENT ################# #}
-<a href="/dashboard/{{ study_id }}" class="btn btn-default" ><-- Dashboard Home</a>
   <div class="title">
     <h1 class="h3"> {{ data_stream }} Data for {{ study_name }} Study
       <div class="choose-stream">
@@ -171,11 +174,33 @@
           <a ng-click="createNewUrl(base_past_url)" class="btn btn-primary">Older</a>
         {% endif %}
       </div>
-      <div>
-        <input type="date" ng-model="start_date"
-             min="{{ first_day }}" max="{{ last_day }}" />
-        <input type="date" ng-model="end_date"
-             min="{{ first_day }}" max="{{ last_day }}" />
+
+      <div class="choose-date">
+        {# Start Date #}
+        <div class="col-sm-4">
+          <div class="form-group">
+            <label for="start_datetime">Start Date</label>
+            <div class="input-group date" id="start_datetimepicker">
+              <input type="text" class="form-control" id="start_datetime" value="">
+              <span class="input-group-addon">
+                <span class="glyphicon glyphicon-calendar"></span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {# End Date #}
+        <div class="col-sm-4">
+          <div class="form-group">
+            <label for="end_datetime">End Date</label>
+            <div class="input-group date" id="end_datetimepicker">
+              <input type="text" class="form-control" id="end_datetime">
+              <span class="input-group-addon">
+                <span class="glyphicon glyphicon-calendar"></span>
+              </span>
+            </div>
+          </div>
+        </div>
         <a ng-click="createDateRangeUrl()" class="btn btn-primary">Submit</a>
       </div>
       <div>
@@ -183,33 +208,6 @@
           <a ng-click="createNewUrl(base_next_url)" class="btn btn-primary">Newer</a>
         {% endif %}
       </div>
-    </div>
-    <div class="row">
-    {# Start Datetime #}
-    <div class="col-sm-4">
-      <div class="form-group">
-        <label for="start_datetime">Start Date and Time</label>
-        <div class="input-group date" id="start_datetimepicker">
-          <input type="text" class="form-control" name="time_start" id="start_datetime" />
-          <span class="input-group-addon">
-            <span class="glyphicon glyphicon-calendar"></span>
-          </span>
-        </div>
-      </div>
-    </div>
-
-    {# End Datetime #}
-    <div class="col-sm-4">
-      <div class="form-group">
-        <label for="end_datetime">End Date and Time</label>
-        <div class="input-group date" id="end_datetimepicker">
-          <input type="text" class="form-control" name="time_end" id="end_datetime" />
-          <span class="input-group-addon">
-            <span class="glyphicon glyphicon-calendar"></span>
-          </span>
-        </div>
-      </div>
-    </div>
     </div>
 
     {#  ################# THE TABLE ################## #}

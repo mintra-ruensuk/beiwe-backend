@@ -31,6 +31,7 @@ def dashboard_page(study_id):
         data_stream_dict=complete_data_stream_dict,
         allowed_studies=get_admins_allowed_studies(),
         system_admin=admin_is_system_admin(),
+        page_location='dashboard_landing',
     )
 
 
@@ -164,6 +165,7 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
         all_flags_list=all_flags_list,
         allowed_studies=get_admins_allowed_studies(),
         system_admin=admin_is_system_admin(),
+        page_location='dashboard',
     )
 
 
@@ -259,6 +261,7 @@ def get_data_for_dashboard_patient_display(study_id, patient_id):
         data_stream_dict=complete_data_stream_dict,
         allowed_studies=get_admins_allowed_studies(),
         system_admin=admin_is_system_admin(),
+        page_location='dashboard',
     )
 
 

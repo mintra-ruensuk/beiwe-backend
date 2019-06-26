@@ -1,14 +1,25 @@
 /*
- * jquery document used to color the background of cells for the participant dashboard
+ * js document used to color the background of cells for the participant dashboard
  * identifies the max and min per ROW and highlights based on that gradient
  */
 $(document).ready(function() {
-    $('#dashboard-datastream-table').DataTable();
+    // $('#dashboard-datastream-table').DataTable();
     $('#start_datetimepicker').datetimepicker({
-        format: "dd MM yyyy",
+        format: "YYYY-MM-DD",
+        defaultDate: window.start_date,
+        minDate: window.first_day,
+        maxDate:  window.last_day,
+        useCurrent: false,
     });
     $('#end_datetimepicker').datetimepicker({
-        format: "dd MM yyyy",
+        format: "YYYY-MM-DD",
+        defaultDate: window.end_date,
+        minDate: window.first_day,
+        maxDate: window.last_day,
+        useCurrent: false,
+    //    you need use current because of a bug in the bootstrap datetimepicker. if you don't have it set to false,
+    //    the default date will get overridden to be the max date, and in the absence of a max date will set to the
+    //    current date.
     });
 });
 
@@ -47,12 +58,12 @@ $(document).ready(function() {
         setUp();
 
         // ------------------------ FUNCTIONS ----------------------- //
+
         function getCurrentGradient(gradient_value){
             if(gradient_value === null){
                 return 0;
             }
             return gradient_value;
-
         }
 
         function addGradient() {
@@ -63,8 +74,8 @@ $(document).ready(function() {
         }
 
         function createDateRangeUrl(){
-            const start_date = $scope.start_date.getFullYear() + "-" + ($scope.start_date.getMonth() + 1) + "-" + $scope.start_date.getDate();
-            const end_date = $scope.end_date.getFullYear() + "-" + ($scope.end_date.getMonth() + 1) + "-" + $scope.end_date.getDate();
+            var start_date = $('#start_datetimepicker').data('date');
+            var end_date = $('#end_datetimepicker').data('date');
             const base_url = "?&start="+start_date+"&end="+end_date;
             let str = "";
             for(let flag_arr of $scope.all_flags_list){
