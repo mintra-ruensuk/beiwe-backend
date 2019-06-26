@@ -36,9 +36,10 @@
                 </li>
                 {# If the current admin is authorized to view only one study, give them a "Home" button to view that study #}
                 <li ng-if="navBarStudies.length <= 1" role="presentation"><a href="/choose_study">Home</a></li>
-                {% if page_location %}
-                  <li ng-if="'{{ page_location }}' === 'dashboard_landing'" role="presentation"><a href="/view_study/{{ study_id }}">Study</a></li>
-                  <li ng-if="'{{ page_location }}' === 'dashboard'" role="presentation"><a href="/dashboard/{{ study_id }}">Dashboard</a></li>
+                {% if page_location == 'dashboard_landing' %}
+                  <li role="presentation"><a href="/view_study/{{ study_id }}">Study</a></li>
+                {% elif page_location == 'dashboard' %}
+                  <li role="presentation"><a href="/dashboard/{{ study_id }}">Dashboard</a></li>
                 {% endif %}
             </ul>
 
