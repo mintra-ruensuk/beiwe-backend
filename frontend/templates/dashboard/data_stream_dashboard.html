@@ -4,6 +4,11 @@
 {% block head %}
   {{ super() }}
   <link rel="stylesheet" href="/static/css/dashboard_pages.css"  type="text/css"/>
+  <link rel="stylesheet" href="/static/css/libraries/bootstrap-datetimepicker.css"  type="text/css"/>
+  <script type="text/javascript" src="/static/javascript/libraries/moment.js"></script>
+  <script type="text/javascript" src="/static/javascript/libraries/transition.js"></script>
+  <script type="text/javascript" src="/static/javascript/libraries/collapse.js"></script>
+  <script type="text/javascript" src="/static/javascript/libraries/bootstrap-datetimepicker.js"></script>
   <script src="/static/javascript/dashboard_features.js"></script>
   <script type="text/javascript">
     window.color_high_range = null;
@@ -178,6 +183,33 @@
           <a ng-click="createNewUrl(base_next_url)" class="btn btn-primary">Newer</a>
         {% endif %}
       </div>
+    </div>
+    <div class="row">
+    {# Start Datetime #}
+    <div class="col-sm-4">
+      <div class="form-group">
+        <label for="start_datetime">Start Date and Time</label>
+        <div class="input-group date" id="start_datetimepicker">
+          <input type="text" class="form-control" name="time_start" id="start_datetime" />
+          <span class="input-group-addon">
+            <span class="glyphicon glyphicon-calendar"></span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    {# End Datetime #}
+    <div class="col-sm-4">
+      <div class="form-group">
+        <label for="end_datetime">End Date and Time</label>
+        <div class="input-group date" id="end_datetimepicker">
+          <input type="text" class="form-control" name="time_end" id="end_datetime" />
+          <span class="input-group-addon">
+            <span class="glyphicon glyphicon-calendar"></span>
+          </span>
+        </div>
+      </div>
+    </div>
     </div>
 
     {#  ################# THE TABLE ################## #}

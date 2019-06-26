@@ -2,8 +2,15 @@
  * jquery document used to color the background of cells for the participant dashboard
  * identifies the max and min per ROW and highlights based on that gradient
  */
-
- // $('#dashboard-datastream-table').DataTable();
+$(document).ready(function() {
+    $('#dashboard-datastream-table').DataTable();
+    $('#start_datetimepicker').datetimepicker({
+        format: "dd MM yyyy",
+    });
+    $('#end_datetimepicker').datetimepicker({
+        format: "dd MM yyyy",
+    });
+});
 
 //main function that runs everything
 (function(){
