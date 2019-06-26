@@ -9,7 +9,7 @@ from config.constants import ALL_DATA_STREAMS, REDUCED_API_TIME_FORMAT, data_str
     complete_data_stream_dict
 from database.data_access_models import ChunkRegistry, PipelineRegistry
 from database.user_models import Participant
-from libs.admin_authentication import authenticate_admin_study_access
+from libs.admin_authentication import authenticate_admin_study_access, get_admins_allowed_studies, admin_is_system_admin
 import json
 
 dashboard_api = Blueprint('dashboard_api', __name__)
@@ -29,6 +29,8 @@ def dashboard_page(study_id):
         participants=participants,
         study_id=study_id,
         data_stream_dict=complete_data_stream_dict,
+        allowed_studies=get_admins_allowed_studies(),
+        system_admin=admin_is_system_admin(),
     )
 
 
@@ -160,6 +162,8 @@ def get_data_for_dashboard_datastream_display(study_id, data_stream):
         last_day=last_day,
         show_color=show_color,
         all_flags_list=all_flags_list,
+        allowed_studies=get_admins_allowed_studies(),
+        system_admin=admin_is_system_admin(),
     )
 
 
@@ -201,8 +205,6 @@ def get_data_for_dashboard_patient_display(study_id, patient_id):
     if chunks or all_data:
         next_url, past_url = create_next_past_urls(first_date_data_entry, last_date_data_entry, start=start, end=end)
         unique_dates, _, _ = get_unique_dates(start, end, first_date_data_entry, last_date_data_entry)
-        print(first_date_data_entry, last_date_data_entry)
-        print(next_url, past_url)
 
     # --------------------- get all the data using the correct unique dates from both data sets ----------------------
         # get the byte data for the dates that have data collected in that week
@@ -255,6 +257,8 @@ def get_data_for_dashboard_patient_display(study_id, patient_id):
         first_date_data=first_date_data_entry,
         last_date_data=last_date_data_entry,
         data_stream_dict=complete_data_stream_dict,
+        allowed_studies=get_admins_allowed_studies(),
+        system_admin=admin_is_system_admin(),
     )
 
 
@@ -430,9 +434,10 @@ def get_unique_dates(start, end, first_day, last_day, chunks=None):
         end = temp
 
     # unique_dates is all of the dates for the week we are showing
-    if start is None: # if start is none default to beginning
+    if start is None: # if start is none default to end
         end_num = min((last_day - first_day).days + 1, 7)
-        unique_dates = [(first_day + timedelta(days=date)) for date in range(end_num)]
+        unique_dates = [(last_day - timedelta(days=end_num - 1)) + timedelta(days=date) for date in range(end_num)]
+        # unique_dates = [(first_day + timedelta(days=date)) for date in range(end_num)]
     elif end is None:  # if end if none default to 7 days
         end_num = min((last_day - start.date()).days + 1, 7)
         unique_dates = [(start.date() + timedelta(days=date)) for date in range(end_num)]
@@ -461,9 +466,8 @@ def create_next_past_urls(first_day, last_day, start=None, end=None):
         duration = (end.date() - start.date()).days
     else:
         duration = 6
-        start = datetime.combine(first_day, datetime.min.time())
-        end = datetime.combine(first_day + timedelta(days=6), datetime.min.time())
-        print(start, end)
+        start = datetime.combine(last_day - timedelta(days=6), datetime.min.time())
+        end = datetime.combine(last_day, datetime.min.time())
 
     if 0 < (start.date() - first_day).days < duration:
         past_url = "?start=" + (start.date() - timedelta(days=(duration + 1))).strftime(REDUCED_API_TIME_FORMAT) + \

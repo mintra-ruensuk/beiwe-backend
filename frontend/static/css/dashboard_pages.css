@@ -112,7 +112,15 @@
 }
 
 /* used by dashboard.html page*/
+.dashboard-options{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+}
 
+.list-group{
+    width: 500px;
+}
 
 /* used by patient and data stream dashboard html pages */
 

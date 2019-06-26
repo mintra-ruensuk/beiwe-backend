@@ -3,6 +3,7 @@
 
 {% block head %}
   {{ super() }}
+  <link rel="stylesheet" href="/static/css/dashboard_pages.css"  type="text/css"/>
 {% endblock %}
 
 {% block content %}
@@ -13,6 +14,7 @@
     <br>
     <p> Choose a participant or data stream to view the Dashboard. </p>
 
+  <div class="dashboard-options">
     <ul class="list-group list-group-flush">
       <li class="list-group-item h5">Participant Data</li>
       {% for i in range(participants|length) %}
@@ -29,22 +31,7 @@
         </li>
       {%  endfor %}
     </ul>
-{#    <ul class="list-group list-group-flush">#}
-{#      <li class="list-group-item h5">Processed Participant Data</li>#}
-{#      {% for i in range(participants|length) %}#}
-{#        <li class="list-group-item">#}
-{#          <a href="{{ study_id }}/processed_patient/{{participants[i]}}">{{participants[i]}}</a>#}
-{#        </li>#}
-{#      {%  endfor %}#}
-{#    </ul>#}
-{#    <ul class="list-group list-group-flush">#}
-{#      <li class="list-group-item h5">Processed Data Stream</li>#}
-{#      {% for stream in processed_data_stream_dict.keys()|sort() %}#}
-{#        <li class="list-group-item">#}
-{#          <a href="{{ study_id }}/processed/{{stream}}">{{  processed_data_stream_dict[stream]}}</a>#}
-{#        </li>#}
-{#      {%  endfor %}#}
-{#    </ul>#}
+  </div>
 
 {% endblock %}
 
