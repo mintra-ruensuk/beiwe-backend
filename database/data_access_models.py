@@ -1,19 +1,19 @@
+import csv
 import json
 import random
 import string
 from datetime import datetime
 
-import pytz
 from django.db import models
 from django.utils import timezone
-from django.utils.timezone import localtime
 from django_extensions.db.fields.json import JSONField
 
-from config.constants import (ALL_DATA_STREAMS, CHUNK_TIMESLICE_QUANTUM, CHUNKABLE_FILES,
+from config.constants import (CHUNK_TIMESLICE_QUANTUM, CHUNKABLE_FILES,
     PIPELINE_FOLDER)
 from database.models import AbstractModel
 from database.study_models import Study
 from database.validators import LengthValidator
+from libs.s3 import s3_retrieve
 from libs.security import chunk_hash, low_memory_chunk_hash
 
 
@@ -75,7 +75,7 @@ class ChunkRegistry(AbstractModel):
         # On the server, but not necessarily in development environments, datetime.fromtimestamp(0)
         # provides the same date and time as datetime.utcfromtimestamp(0).
         # timezone.make_aware(datetime.utcfromtimestamp(0), timezone.utc) creates a time zone
-        # aware datetime that is unambiguous in the UTC timezone and generally identecal timestamps.
+        # aware datetime that is unambiguous in the UTC timezone and generally identical timestamps.
         # Django's behavior (at least on this project, but this project is set to the New York
         # timezone so it should be generalizable) is to add UTC as a timezone when storing a naive
         # datetime in the database.
@@ -139,6 +139,84 @@ class ChunkRegistry(AbstractModel):
     def low_memory_update_chunk_hash(self, list_data_to_hash):
         self.chunk_hash = low_memory_chunk_hash(list_data_to_hash)
         self.save()
+
+    def s3_retrieve(self):
+        """ does the s3 retrieve operation for the s3 object """
+        return s3_retrieve(self.chunk_path, self.study.object_id, raw_path=True)
+
+    def get_survey_row_dicts(self):
+        """ Transforms a survey file into a more reliable, structured representation. """
+        #TODO: stick this somewhere else, it is not an instance function
+
+        # question answer keys are:
+        #       question id, question type, question text, question answer options, answer.
+
+        # get the data
+        reader = csv.DictReader(self.s3_retrieve().splitlines())
+        # reader = csv.DictReader(self.splitlines())  # debugging line for passing in a string
+        all_answer_dicts = [line for line in reader]
+
+        pop_these = []
+        for i, answer_dict in enumerate(all_answer_dicts):
+
+            # get rid of spaces in the keys
+            for key in reader.fieldnames:
+                answer_dict[key.replace(" ", "_")] = answer_dict.pop(key)
+
+            # attempt to ensure the critical output strings are unicode strings.
+            try:
+                answer_dict["answer"] = answer_dict["answer"].decode("utf8")
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                pass
+            try:
+                answer_dict["question_text"] = answer_dict["question_text"].decode("utf8")
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                pass
+
+            # variables
+            question_type = answer_dict["question_type"]
+            question_answer_options = answer_dict["question_answer_options"]
+
+            # looks like occasionally there is no data in question_answer_options.
+            # (I think this is old data, not real data)
+            if not question_answer_options:
+                answer_dict["question_answer_options"] = None
+                continue
+
+            if question_type in (
+            "Radio Button Question", "Checkbox Question", "checkbox", "radio_button"):
+                # radio buttons have semicolon separated question answers inside of brackets.
+                # extract them, strip leading and trailing whitespace from the strings.
+                answer_dict["question_answer_options"] = [
+                    qao.strip() for qao in question_answer_options.strip("[").strip("]").split(";")
+                ]
+
+            elif question_type in ("Open Response Question", "free_response"):
+                # open responses have 3 types:
+                if question_answer_options.endswith("NUMERIC"):
+                    answer_dict['question_answer_options'] = "NUMERIC"
+                elif question_answer_options.endswith("SINGLE_LINE_TEXT"):
+                    answer_dict['question_answer_options'] = "SINGLE_LINE_TEXT"
+                elif question_answer_options.endswith("MULTI_LINE_TEXT"):
+                    answer_dict["question_answer_options"] = "MULTI_LINE_TEXT"
+
+            elif question_type in ("Slider Question", "slider"):
+                # slider questions have a min and max range in the form 'min = 0; max = 100'
+                # Extract the numbers, evaluate and integer value, stick them in a dict.
+
+                min_value, max_value = question_answer_options.split(";")
+                min_value = int("".join(char for char in min_value if char.isdigit()))
+                max_value = int("".join(char for char in max_value if char.isdigit()))
+                answer_dict["question_answer_options"] = {"min": min_value, "max": max_value}
+
+            elif question_type == "info_text_box":
+                # drop info text boxes entirely
+                pop_these.append(i)
+
+        for i in reversed(pop_these):
+            all_answer_dicts.pop(i)
+
+        return all_answer_dicts
 
 
 class FileToProcess(AbstractModel):
