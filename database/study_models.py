@@ -53,18 +53,22 @@ class Study(AbstractModel):
     def get_surveys_for_study(self, requesting_os):
         survey_json_list = []
         for survey in self.surveys.filter(deleted=False):
+            # if there are no weekly schedules, don't download survey to legacy app
+            if survey.weekly_schedules.count() == 0:
+                continue
             survey_dict = survey.as_native_python()
             # Make the dict look like the old Mongolia-style dict that the frontend is expecting
             survey_dict.pop('id')
             survey_dict.pop('deleted')
             survey_dict['_id'] = survey_dict.pop('object_id')
+            # legacy app expects timings in the survey dict, used to be field on survey
+            survey_dict['timings'] = survey.weekly_timings()
             
             # Exclude image surveys for the Android app to avoid crashing it
             if requesting_os == "ANDROID" and survey.survey_type == "image_survey":
                 pass
             else:
                 survey_json_list.append(survey_dict)
-                
         return survey_json_list
 
     def get_survey_ids_for_study(self, survey_type='tracking_survey'):
