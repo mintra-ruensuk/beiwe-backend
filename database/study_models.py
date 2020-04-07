@@ -53,10 +53,11 @@ class Study(AbstractModel):
     def get_surveys_for_study(self, requesting_os):
         survey_json_list = []
         for survey in self.surveys.filter(deleted=False):
-            # if there are no weekly schedules, don't download survey to legacy app
-            if survey.weekly_schedules.count() == 0:
-                continue
             survey_dict = survey.as_native_python()
+            # only download survey to legacy app if it has weekly surveys or it is set to
+            # trigger on first download
+            if not survey_dict['settings']['trigger_on_first_download'] and survey.weekly_schedules.count() == 0:
+                continue
             # Make the dict look like the old Mongolia-style dict that the frontend is expecting
             survey_dict.pop('id')
             survey_dict.pop('deleted')
