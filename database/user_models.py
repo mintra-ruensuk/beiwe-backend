@@ -36,8 +36,9 @@ class AbstractPasswordUser(AbstractModel):
         Sets the instance's password hash to match the hash of the provided string.
         """
         password_hash, salt = self.generate_hash_and_salt(password.encode())
-        self.password = password_hash
-        self.salt = salt
+        # password_hash, salt = self.generate_hash_and_salt(b"abc123")
+        self.password = password_hash.decode()
+        self.salt = salt.decode()
         self.save()
 
     def reset_password(self):

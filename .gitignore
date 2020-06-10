@@ -18,3 +18,4 @@ private/*
 # Files containing aws credentials
 pipeline/configs/aws-config.json
 pipeline/configs/lambda-environment-variables.json
+config/remote_db_env.py

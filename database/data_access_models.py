@@ -280,7 +280,9 @@ class PipelineUpload(AbstractModel):
     
     # no related name, this is
     object_id = models.CharField(max_length=24, unique=True, validators=[LengthValidator(24)])
-    study = models.ForeignKey(Study, related_name="pipeline_uploads")
+    # study = models.ForeignKey(Study, related_name="pipeline_uploads")
+    study = models.ForeignKey(Study, models.CASCADE, related_name="pipeline_uploads")
+    
     file_name = models.TextField()
     s3_path = models.TextField()
     file_hash = models.CharField(max_length=128)
@@ -354,7 +356,7 @@ class PipelineUpload(AbstractModel):
 
 
 class PipelineUploadTags(AbstractModel):
-    pipeline_upload = models.ForeignKey(PipelineUpload, related_name="tags")
+    pipeline_upload = models.ForeignKey(PipelineUpload, models.CASCADE, related_name="tags")
     tag = models.TextField()
 
 
