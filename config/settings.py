@@ -7,6 +7,7 @@ os.environ['S3_BUCKET'] = 'bucket_name'
 
 BEIWE_SERVER_AWS_ACCESS_KEY_ID = getenv("BEIWE_SERVER_AWS_ACCESS_KEY_ID") or getenv("S3_ACCESS_CREDENTIALS_USER")
 BEIWE_SERVER_AWS_SECRET_ACCESS_KEY = getenv("BEIWE_SERVER_AWS_SECRET_ACCESS_KEY") or getenv("S3_ACCESS_CREDENTIALS_KEY")
+BEIWE_SERVER_AWS_TOKEN = getenv("BEIWE_SERVER_AWS_TOKEN", "")
 
 # This is the secret key for the website. Mostly it is used to sign cookies. You should provide a
 #  cryptographically secure string to this value.

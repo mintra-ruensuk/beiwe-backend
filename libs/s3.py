@@ -3,7 +3,7 @@ import Crypto
 
 from config.constants import DEFAULT_S3_RETRIES
 from config.settings import (BEIWE_SERVER_AWS_ACCESS_KEY_ID, BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
-    S3_BUCKET, S3_REGION_NAME)
+    S3_BUCKET, S3_REGION_NAME, BEIWE_SERVER_AWS_TOKEN)
 from libs import encryption
 
 
@@ -12,6 +12,7 @@ class S3VersionException(Exception): pass
 conn = boto3.client('s3',
                     aws_access_key_id=BEIWE_SERVER_AWS_ACCESS_KEY_ID,
                     aws_secret_access_key=BEIWE_SERVER_AWS_SECRET_ACCESS_KEY,
+                    aws_session_token=BEIWE_SERVER_AWS_TOKEN,
                     region_name=S3_REGION_NAME)
 
 
